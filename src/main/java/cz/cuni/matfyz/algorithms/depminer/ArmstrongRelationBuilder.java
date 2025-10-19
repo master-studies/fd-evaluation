@@ -4,7 +4,6 @@
  */
 package cz.cuni.matfyz.algorithms.depminer;
 
-import static cz.cuni.matfyz.algorithms.depminer.MainApp.FILENAME;
 import cz.cuni.matfyz.algorithms.depminer.model._CSVTestCase;
 import cz.cuni.matfyz.algorithms.depminer.model._MAX_SET;
 import cz.cuni.matfyz.algorithms.depminer.util._BitSetUtil;
@@ -117,8 +116,8 @@ public class ArmstrongRelationBuilder {
 
 	}
 
-	public List<List<String>> realworldAR(List<int[]> AR, _CSVTestCase input) throws Exception {
-		input = new _CSVTestCase(FILENAME, false);	// TODO: REMOVE WHEN CSV_TEST_CASE IMPLEMENTATION IS FIXED
+	public List<List<String>> realworldAR(List<int[]> AR, _CSVTestCase input, String filename) throws Exception {
+		input = new _CSVTestCase(filename, false);	// TODO: REMOVE WHEN CSV_TEST_CASE IMPLEMENTATION IS FIXED
 		int columnCount = AR.get(0).length;
 
 		// Step 1: Calculate distinct values required for each column

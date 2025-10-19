@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 import org.apache.lucene.util.OpenBitSet;
 
@@ -37,16 +36,19 @@ public class DepMiner {
 
     private _CMAX_SET_Generator setGenerator;
 
+    private static String FILENAME;
+
     Int2ObjectMap<List<OpenBitSet>> lhss;
 
     _FunctionalDependencyGenerator xxx;
 
-    public DepMiner(/*int numberOfThreads,*/_CSVTestCase input) {
+    public DepMiner(/*int numberOfThreads,*/_CSVTestCase input, String filename) {
 //		this.numberOfThreads = numberOfThreads;
         this.input = input;
+        FILENAME = filename;
     }
 
-    public void execute() throws Exception {
+    public List<String> execute() throws Exception {
         _StrippedPartitionGenerator spg = new _StrippedPartitionGenerator();
         List<_StrippedPartition> strippedPartitions = spg.execute(input);
 
@@ -99,9 +101,12 @@ public class DepMiner {
             list.add(fd);
         }
 
+        List<String> FdsResult = new ArrayList<>();
+
         fds.forEach((key, list) -> {
             System.out.println("Attribute: " + key + " Size: " + list.size());
             for (int index = 0; index < list.size(); ++index) {
+                FdsResult.add(list.get(index).toString());  
                 System.out.println(list.get(index));
             }
         });
@@ -129,7 +134,7 @@ public class DepMiner {
         }
         System.out.println("SIZE: " + AR.size());
 
-        var AR_RL = builder.realworldAR(AR, input);
+        var AR_RL = builder.realworldAR(AR, input, FILENAME);
 
         String outputFilePath = "armstrong.csv";
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFilePath))) {
@@ -150,6 +155,8 @@ public class DepMiner {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        return FdsResult;
     }
 
     public void demo() throws Exception {
@@ -194,6 +201,7 @@ public class DepMiner {
             list.add(fd);
         }
 
+
         fds.forEach((key, list) -> {
             System.out.println("Attribute: " + key + " Size: " + list.size());
             for (int index = 0; index < list.size(); ++index) {
@@ -225,7 +233,7 @@ public class DepMiner {
         }
         System.out.println("SIZE: " + AR.size());
 
-        var AR_RL = builder.realworldAR(AR, input);
+        var AR_RL = builder.realworldAR(AR, input, FILENAME);
 
         for (var line : AR_RL) {
             for (int index = 0; index < line.size(); ++index) {
@@ -333,7 +341,7 @@ public class DepMiner {
         }
         System.out.println("SIZE: " + AR.size());
 
-        var AR_RL = builder.realworldAR(AR, input);
+        var AR_RL = builder.realworldAR(AR, input, FILENAME);
 
         for (var line : AR_RL) {
             for (int index = 0; index < line.size(); ++index) {
