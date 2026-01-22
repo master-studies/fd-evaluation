@@ -7,6 +7,7 @@ package cz.cuni.matfyz.algorithms.depminer;
 import cz.cuni.matfyz.algorithms.depminer.model._AgreeSet;
 import cz.cuni.matfyz.algorithms.depminer.model._CMAX_SET;
 import cz.cuni.matfyz.algorithms.depminer.model._CSVTestCase;
+import cz.cuni.matfyz.algorithms.depminer.model._FunctionalDependency;
 import cz.cuni.matfyz.algorithms.depminer.model._FunctionalDependencyGroup;
 import cz.cuni.matfyz.algorithms.depminer.model._MAX_SET;
 import cz.cuni.matfyz.algorithms.depminer.model._StrippedPartition;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import org.apache.lucene.util.OpenBitSet;
+import cz.cuni.matfyz.algorithms.depminer.model._FunctionalDependencyOutput;
 
 /**
  *
@@ -48,7 +50,7 @@ public class DepMiner {
         FILENAME = filename;
     }
 
-    public List<String> execute() throws Exception {
+    public List<_FunctionalDependencyOutput> execute() throws Exception {
         _StrippedPartitionGenerator spg = new _StrippedPartitionGenerator();
         List<_StrippedPartition> strippedPartitions = spg.execute(input);
 
@@ -101,13 +103,17 @@ public class DepMiner {
             list.add(fd);
         }
 
-        List<String> FdsResult = new ArrayList<>();
+        List<_FunctionalDependencyOutput> FdsResult = new ArrayList<>();
 
         fds.forEach((key, list) -> {
             System.out.println("Attribute: " + key + " Size: " + list.size());
             for (int index = 0; index < list.size(); ++index) {
-                FdsResult.add(list.get(index).toString());  
-                System.out.println(list.get(index));
+                // I only want to reaturn column names, however you can pass input.relationName() as table identifier if needed
+                _FunctionalDependency fd = list.get(index).buildDependency("", input.columnNames());
+                String names = fd.toString();
+                String indices = list.get(index).toString();
+                FdsResult.add(new _FunctionalDependencyOutput(names, indices));
+                System.out.println(fd);
             }
         });
         System.out.println("");

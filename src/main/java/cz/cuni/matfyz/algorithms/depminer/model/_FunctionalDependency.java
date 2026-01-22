@@ -9,6 +9,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -64,6 +65,9 @@ public class _FunctionalDependency {
         public String toString() {
             if (this.tableIdentifier.isEmpty() && this.columnIdentifier.isEmpty()) {
                 return "";
+            }
+            if (this.tableIdentifier.isEmpty()) {
+                return this.columnIdentifier;
             }
             return tableIdentifier + TABLE_COLUMN_CONCATENATOR + columnIdentifier;
         }
@@ -181,7 +185,7 @@ public class _FunctionalDependency {
          * Creates an empty column combination. Needed for serialization.
          */
         public _ColumnCombination() {
-            columnIdentifiers = new TreeSet<>();
+            columnIdentifiers = new LinkedHashSet<>();
         }
 
         /**
@@ -190,7 +194,7 @@ public class _FunctionalDependency {
          * @param columnIdentifier the identifier in the ColumnCombination
          */
         public _ColumnCombination(_ColumnIdentifier... columnIdentifier) {
-            columnIdentifiers = new TreeSet<>(Arrays.asList(columnIdentifier));
+            columnIdentifiers = new LinkedHashSet<>(Arrays.asList(columnIdentifier));
         }
 
         /**

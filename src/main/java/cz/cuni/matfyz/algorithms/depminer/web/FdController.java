@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import cz.cuni.matfyz.algorithms.depminer.DepMiner;
 import cz.cuni.matfyz.algorithms.depminer.MainApp;
 import cz.cuni.matfyz.algorithms.depminer.model._CSVTestCase;
+import cz.cuni.matfyz.algorithms.depminer.model._FunctionalDependencyOutput;
 
 @RestController
 public class FdController {
@@ -21,8 +22,8 @@ public class FdController {
     }
 
     @GetMapping("/extract/{filename}")
-    public List<String> extractFds(@PathVariable("filename") String filename) {
-        List<String> FdsResult = null;
+    public List<_FunctionalDependencyOutput> extractFds(@PathVariable("filename") String filename) {
+        List<_FunctionalDependencyOutput> FdsResult = null;
         try {
             boolean hasHeader = false;
             String fullName = filename + ".csv";
@@ -34,6 +35,7 @@ public class FdController {
             Logger.getLogger(MainApp.class.getName()).log(Level.SEVERE, null, ex);
         }
 
+        System.out.println("Extracted FDs: " + FdsResult);
         return FdsResult;
     }
 }
