@@ -4,7 +4,6 @@
  */
 package cz.cuni.matfyz.algorithms.depminer.model;
 
-import cz.cuni.matfyz.algorithms.depminer.model._FunctionalDependency;
 import com.google.common.collect.ImmutableList;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -21,7 +20,7 @@ import java.util.List;
  */
 public class _CSVTestCase {
 
-    private static String filePath = "";
+    private static String filePath = "datasets" + File.separator;
     private static String defaultFileName = "dbtesmaData.c100000.r10";
     private static boolean defaultHasHeader = false;
     private static BufferedWriter bw;
@@ -41,7 +40,8 @@ public class _CSVTestCase {
     public _CSVTestCase(String fileName, boolean hasHeader) throws IOException {
 
         this.fileName = fileName;
-        this.hasHeader = hasHeader;
+        // Always treat first line as headers for this use case
+        this.hasHeader = true;
 
         this.br = new BufferedReader(new FileReader(new File(_CSVTestCase.filePath + fileName)));
         this.nextLine = this.br.readLine();
@@ -148,7 +148,7 @@ public class _CSVTestCase {
 
     private ImmutableList<String> getList(String nextLine) {
 
-        String[] splitted = nextLine.split(",");
+        String[] splitted = nextLine.split(this.delimiter);
 
         ImmutableList.Builder<String> builder = new ImmutableList.Builder<>();
 
