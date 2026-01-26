@@ -32,6 +32,10 @@ COPY --from=builder /app/target/fd-discovery-1.0-SNAPSHOT.jar app.jar
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
+# Default values can be overridden via --env-file
+ENV SPRING_PROFILES_ACTIVE=dev \
+    SERVER_PORT=8081
+
 # Expose port
 EXPOSE 8081
 
