@@ -33,7 +33,7 @@ USER appuser
 
 # Default values can be overridden via --env-file
 ENV SPRING_PROFILES_ACTIVE=dev \
-    SERVER_PORT=8084 \
+    SERVER_PORT=8084 
 
 # Expose port
 EXPOSE 8084
