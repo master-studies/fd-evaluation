@@ -2,19 +2,26 @@
 
 This repository contains a microservices architecture for Functional Dependency Discovery and Data Quality Assessment, orchestrated using Docker Compose.
 
-## Architecture Overview
+## Project Structure
 
-The system consists of the following services:
+### client-app/
+The frontend application built with React, TypeScript, and Vite. Provides a web interface for service discovery visualization and interaction with the microservices.
 
-- **svc-discovery-service** (Port 8761) - Eureka service discovery server
-- **sqlserver** (Port 1433) - Microsoft SQL Server 2022 database
-- **sqlserver-init** - One-time database initialization service
-- **svc-fd-discovery** (Port 8081) - Functional Dependency discovery service
-- **svc-succinctness** (Port 8082) - Data succinctness assessment service
-- **svc-coverage** (Port 8083) - Data coverage analysis service
-- **svc-genuineness** (Port 8084) - Data genuineness validation service
-- **svc-entropy** (Port 8085) - Data entropy calculation service
-- **client** (Port 5173) - Frontend client application (Vite/React)
+### scripts/
+Database initialization and configuration scripts:
+- **init-db.sql** - SQL Server schema initialization script that creates the CleaningFd database and tables.
+Automatically executed by the sqlserver-init container on first startup.
+
+### services/
+The backend microservices written in Java with Spring Boot:
+- **svc-discovery-service** - Eureka service registry for microservice discovery and registration
+- **svc-fd-discovery** - Analyzes datasets to discover functional dependencies between attributes
+- **svc-succinctness** - Evaluates data quality by measuring redundancy and compactness
+- **svc-coverage** - Assesses completeness and coverage of functional dependencies in datasets
+- **svc-genuineness** - Validates data authenticity and integrity against functional dependency rules
+- **svc-entropy** - Calculates information entropy to measure data uncertainty and randomness based on plaque test
+
+Each service is independently deployable with its own Dockerfile and Maven configuration.
 
 ## Prerequisites
 
@@ -27,7 +34,7 @@ The system consists of the following services:
 
 ### 1. Create Your `.env` File
 
-A `.env.example` file is provided in the repository as a template. To set up your local environment:
+A `.env.example` file is provided in the repository as a template. This configuration file is shared between all services and contains configurable parameters for both backend microservices (database connections, Eureka discovery, CORS) and frontend services (API endpoints). To set up your local environment:
 
 1. **Copy the template:**
    ```bash
@@ -69,17 +76,29 @@ A `.env.example` file is provided in the repository as a template. To set up you
 
 ### 2. Client Environment File
 
-A `.env.example` file is also provided in the `client-app` directory. To set up the frontend:
+A `.env.sample` file is provided in the `client-app` directory. To set up the frontend:
 
 1. **Copy the template:**
    ```bash
-   cp client-app/.env.example client-app/.env
+   cp client-app/.env.sample client-app/.env
    ```
 
-2. **Edit the file** with your local configuration:
+2. **Edit the file** with your local configuration if needed:
    ```bash
-   VITE_API_BASE_URL=http://localhost:8761
+   # API Configuration
+   VITE_API_BASE_URL=http://localhost:8080
+   VITE_API_TIMEOUT=30000
+   
+   # Eureka Discovery Configuration
+   VITE_EUREKA_URL=
+   VITE_EUREKA_APP_NAME=client-app
+   
+   # Application Settings
+   VITE_APP_ENV=development
+   VITE_LOG_LEVEL=debug
    ```
+
+**Note:** The root `.env` file is used by backend services and Docker Compose, while `client-app/.env` is specifically loaded by the client container.
 
 ### 3. Database Initialization Script
 
@@ -112,7 +131,13 @@ docker-compose up
    docker-compose up -d
    ```
 
-3. **View logs:**
+3. **Access the application:**
+   
+   Once all containers are up and running successfully, the application is accessible at:
+   - **Frontend:** http://localhost:5173 (or your configured client port)
+   - **Eureka Dashboard:** http://localhost:8761
+
+4. **View logs:**
    ```bash
    docker-compose logs -f
    ```
@@ -125,33 +150,6 @@ docker-compose up
 5. **Stop services and remove volumes:**
    ```bash
    docker-compose down -v
-   ```
-
-### Using Custom Environment File
-
-All services use the `.env` file by default. If you need multiple environment configurations (development, staging, production), you can:
-
-1. **Create separate `.env` files** for each environment:
-   ```bash
-   cp .env.example .env.development
-   cp .env.example .env.staging
-   cp .env.example .env.production
-   ```
-
-2. **Use the desired `.env` file** by renaming or copying it:
-   ```bash
-   # For production
-   cp .env.production .env
-   docker-compose up
-   
-   # For staging
-   cp .env.staging .env
-   docker-compose up
-   ```
-
-3. **Or use docker-compose with --env-file flag:**
-   ```bash
-   docker-compose --env-file .env.production up
    ```
 
 ## Service-Specific Commands
@@ -201,36 +199,6 @@ Individual service health endpoints:
 - Eureka Dashboard: http://localhost:8761
 
 ## Troubleshooting
-
-### Database Connection Issues
-
-1. **Verify SQL Server is healthy:**
-   ```bash
-   docker-compose logs sqlserver
-   ```
-
-2. **Test database connection:**
-   ```bash
-   docker exec -it sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourPassword" -C
-   ```
-
-### Service Won't Start
-
-1. **Check logs:**
-   ```bash
-   docker-compose logs <service-name>
-   ```
-
-2. **Restart specific service:**
-   ```bash
-   docker-compose restart <service-name>
-   ```
-
-3. **Remove and recreate:**
-   ```bash
-   docker-compose rm -f <service-name>
-   docker-compose up -d <service-name>
-   ```
 
 ### Port Already in Use
 

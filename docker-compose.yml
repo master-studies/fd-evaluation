@@ -8,7 +8,7 @@ networks:
 services:
   svc-discovery-service:
     build:
-      context: ./svc-discovery-service
+      context: ./services/svc-discovery-service
       dockerfile: Dockerfile
     container_name: svc-discovery-service
     ports:
@@ -63,7 +63,7 @@ services:
 
   svc-fd-discovery:
     build:
-      context: ./svc-fd-discovery
+      context: ./services/svc-fd-discovery
       dockerfile: Dockerfile
     container_name: svc-fd-discovery
     ports:
@@ -91,7 +91,7 @@ services:
 
   svc-succinctness:
     build:
-      context: ./svc-succinctness
+      context: ./services/svc-succinctness
       dockerfile: Dockerfile
     container_name: svc-succinctness
     ports:
@@ -118,7 +118,7 @@ services:
 
   svc-coverage:
     build:
-      context: ./svc-coverage
+      context: ./services/svc-coverage
       dockerfile: Dockerfile
     container_name: svc-coverage
     ports:
@@ -145,7 +145,7 @@ services:
   
   svc-genuineness:
     build:
-      context: ./svc-genuineness
+      context: ./services/svc-genuineness
       dockerfile: Dockerfile
     container_name: svc-genuineness
     ports:
@@ -172,7 +172,7 @@ services:
 
   svc-entropy:
     build:
-      context: ./svc-entropy
+      context: ./services/svc-entropy
       dockerfile: Dockerfile
     container_name: svc-entropy
     ports:
