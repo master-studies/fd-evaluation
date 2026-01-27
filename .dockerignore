@@ -1,0 +1,49 @@
+# Version control
+.git/
+.gitignore
+.github/
+
+# Build artifacts
+dist/
+node_modules/
+.tsbuildinfo
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*.DS_Store
+
+# Environment files (sensitive)
+.env
+.env.local
+.env.*.local
+
+# Docker files
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Documentation
+README.md
+*.md
+
+# Test files
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Config files not needed in image
+.eslintrc.cjs
+.prettierrc
+vite.config.ts
+tsconfig*.json
+eslint.config.js
+postcss.config.js
+tailwind.config.js

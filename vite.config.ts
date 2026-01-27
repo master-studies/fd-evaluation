@@ -15,9 +15,8 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      // Proxy Eureka requests to avoid CORS issues
       '/eureka': {
-        target: 'http://localhost:8761',
+        target: process.env.VITE_EUREKA_PROXY_TARGET || 'http://localhost:8761',
         changeOrigin: true,
         secure: false,
       },
