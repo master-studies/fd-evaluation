@@ -1,0 +1,217 @@
+volumes:
+  sqlserver-data:
+
+networks:
+  microservices-network:
+    driver: bridge
+
+services:
+  svc-discovery-service:
+    build:
+      context: ./svc-discovery-service
+      dockerfile: Dockerfile
+    container_name: svc-discovery-service
+    ports:
+      - "8761:8761"
+    environment:
+      - SPRING_APPLICATION_NAME=svc-discovery-service
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - microservices-network
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver
+    env_file:
+      - ./.env
+    environment:
+      ACCEPT_EULA: Y
+      MSSQL_PID: Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" -C -No"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # One-off init service to seed database after SQL Server is healthy
+  sqlserver-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver-init
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    networks:
+      - microservices-network
+    volumes:
+      - ./scripts:/scripts:ro
+    env_file:
+      - ./.env
+    entrypoint: ["/bin/sh", "-c", "/opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P \"$$MSSQL_SA_PASSWORD\" -i /scripts/init-db.sql -C"]
+    restart: "no"
+
+  svc-fd-discovery:
+    build:
+      context: ./svc-fd-discovery
+      dockerfile: Dockerfile
+    container_name: svc-fd-discovery
+    ports:
+      - "8081:8081"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      svc-discovery-service:
+        condition: service_healthy
+    env_file:
+      - ./.env
+    environment:
+      DB_URL: jdbc:sqlserver://sqlserver:1433;databaseName=CleaningFd;encrypt=false;trustServerCertificate=true
+      EUREKA_URL: http://svc-discovery-service:8761/eureka/
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:${SERVER_PORT:-8081}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  svc-succinctness:
+    build:
+      context: ./svc-succinctness
+      dockerfile: Dockerfile
+    container_name: svc-succinctness
+    ports:
+      - "8082:8082"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      svc-discovery-service:
+        condition: service_healthy
+    env_file:
+      - ./.env
+    environment:
+      DB_URL: jdbc:sqlserver://sqlserver:1433;databaseName=CleaningFd;encrypt=false;trustServerCertificate=true
+      EUREKA_URL: http://svc-discovery-service:8761/eureka/
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:${SERVER_PORT:-8082}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  svc-coverage:
+    build:
+      context: ./svc-coverage
+      dockerfile: Dockerfile
+    container_name: svc-coverage
+    ports:
+      - "8083:8083"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      svc-discovery-service:
+        condition: service_healthy
+    env_file:
+      - ./.env
+    environment:
+      DB_URL: jdbc:sqlserver://sqlserver:1433;databaseName=CleaningFd;encrypt=false;trustServerCertificate=true
+      EUREKA_URL: http://svc-discovery-service:8761/eureka/
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:${SERVER_PORT:-8082}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+  
+  svc-genuineness:
+    build:
+      context: ./svc-genuineness
+      dockerfile: Dockerfile
+    container_name: svc-genuineness
+    ports:
+      - "8084:8084"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      svc-discovery-service:
+        condition: service_healthy
+    env_file:
+      - ./.env
+    environment:
+      DB_URL: jdbc:sqlserver://sqlserver:1433;databaseName=CleaningFd;encrypt=false;trustServerCertificate=true
+      EUREKA_URL: http://svc-discovery-service:8761/eureka/
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:${SERVER_PORT:-8084}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  svc-entropy:
+    build:
+      context: ./svc-entropy
+      dockerfile: Dockerfile
+    container_name: svc-entropy
+    ports:
+      - "8085:8085"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      svc-discovery-service:
+        condition: service_healthy
+    env_file:
+      - ./.env
+    environment:
+      DB_URL: jdbc:sqlserver://sqlserver:1433;databaseName=CleaningFd;encrypt=false;trustServerCertificate=true
+      EUREKA_URL: http://svc-discovery-service:8761/eureka/
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:${SERVER_PORT:-8085}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  client:
+    build:
+      context: ./client-app
+      dockerfile: Dockerfile
+      target: ${CLIENT_BUILD_TARGET:-development}
+    container_name: client-app
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./client-app:/app
+      - /app/node_modules
+    env_file:
+      - ./client-app/.env
+    environment:
+      - NODE_ENV=${CLIENT_NODE_ENV:-development}
+      - VITE_EUREKA_PROXY_TARGET=${CLIENT_EUREKA_PROXY_TARGET}
+    networks:
+      - microservices-network
