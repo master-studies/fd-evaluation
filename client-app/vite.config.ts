@@ -14,6 +14,7 @@ export default defineConfig({
     },
   },
   server: {
+    port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : 5173,
     proxy: {
       '/eureka': {
         target: process.env.VITE_EUREKA_PROXY_TARGET || 'http://localhost:8761',
