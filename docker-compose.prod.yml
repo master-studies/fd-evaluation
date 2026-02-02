@@ -11,8 +11,8 @@ services:
       context: ./services/svc-discovery-service
       dockerfile: Dockerfile
     container_name: svc-discovery-service
-    ports:
-      - "4706:4706"
+    expose:
+      - "4706"
     env_file:
       - ./.env
     environment:
@@ -35,8 +35,8 @@ services:
     environment:
       ACCEPT_EULA: Y
       MSSQL_PID: Developer
-    ports:
-      - "1433:1433"
+    expose:
+      - "1433"
     volumes:
       - sqlserver-data:/var/opt/mssql
     networks:
@@ -69,8 +69,8 @@ services:
       context: ./services/svc-fd-discovery
       dockerfile: Dockerfile
     container_name: svc-fd-discovery
-    ports:
-      - "4705:4705"
+    expose:
+      - "4705"
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -95,8 +95,8 @@ services:
       context: ./services/svc-succinctness
       dockerfile: Dockerfile
     container_name: svc-succinctness
-    ports:
-      - "4704:4704"
+    expose:
+      - "4704"
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -120,8 +120,8 @@ services:
       context: ./services/svc-coverage
       dockerfile: Dockerfile
     container_name: svc-coverage
-    ports:
-      - "4703:4703"
+    expose:
+      - "4703"
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -145,8 +145,8 @@ services:
       context: ./services/svc-genuineness
       dockerfile: Dockerfile
     container_name: svc-genuineness
-    ports:
-      - "4702:4702"
+    expose:
+      - "4702"
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -170,8 +170,8 @@ services:
       context: ./services/svc-entropy
       dockerfile: Dockerfile
     container_name: svc-entropy
-    ports:
-      - "4701:4701"
+    expose:
+      - "4701"
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -194,13 +194,10 @@ services:
     build:
       context: ./client-app
       dockerfile: Dockerfile
-      target: ${CLIENT_BUILD_TARGET:-development}
+      target: ${CLIENT_BUILD_TARGET:-production}
     container_name: client-app
     ports:
       - "4700:4700"
-    volumes:
-      - ./client-app:/app
-      - /app/node_modules
     env_file:
       - ./client-app/.env
     networks:

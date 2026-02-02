@@ -28,17 +28,17 @@ Each service is independently deployable with its own Dockerfile and Maven confi
 - Docker Desktop or Docker Engine (version 20.10 or higher)
 - Docker Compose (version 2.0 or higher)
 - At least 4GB of available RAM
-- Ports 8761, 1433, 8081-8085, and 5173 available on your host machine
+- Ports 1433 and 4700-4706 available on your host machine
 
 ## Environment Configuration
 
 ### 1. Create Your `.env` File
 
-A `.env.example` file is provided in the repository as a template. This configuration file is shared between all services and contains configurable parameters for both backend microservices (database connections, Eureka discovery, CORS) and frontend services (API endpoints). To set up your local environment:
+A `.env.sample` file is provided in the repository as a template. This configuration file is shared between all services and contains configurable parameters for backend microservices (database connections, Eureka discovery, CORS) and Docker Compose values. To set up your local environment:
 
 1. **Copy the template:**
    ```bash
-   cp .env.example .env
+   cp .env.sample .env
    ```
 
 2. **Edit the `.env` file** with your local configuration values:
@@ -59,10 +59,10 @@ A `.env.example` file is provided in the repository as a template. This configur
    DB_PASSWORD=AppUser123!
    
    # CORS Configuration
-   CORS_ALLOWED_ORIGINS=http://localhost:5173
+   CORS_ALLOWED_ORIGINS=http://localhost:4700
    
    # Eureka Service Discovery URL
-   EUREKA_URL=http://svc-discovery-service:8761/eureka/
+   EUREKA_URL=http://svc-discovery-service:4706/eureka/
    ```
 
 3. **Key variables explained:**
@@ -85,17 +85,15 @@ A `.env.sample` file is provided in the `client-app` directory. To set up the fr
 
 2. **Edit the file** with your local configuration if needed:
    ```bash
-   # API Configuration
-   VITE_API_BASE_URL=http://localhost:8080
-   VITE_API_TIMEOUT=30000
-   
+   # Runtime Configuration
+   NODE_ENV=development
+   VITE_PORT=4700
+   VITE_EUREKA_PROXY_TARGET=http://svc-discovery-service:4706
+
    # Eureka Discovery Configuration
+   # Leave VITE_EUREKA_URL empty to use the Vite proxy (/eureka) in development
+   # For production set it to the actual Eureka server URL: http://localhost:4706/eureka
    VITE_EUREKA_URL=
-   VITE_EUREKA_APP_NAME=client-app
-   
-   # Application Settings
-   VITE_APP_ENV=development
-   VITE_LOG_LEVEL=debug
    ```
 
 **Note:** The root `.env` file is used by backend services and Docker Compose, while `client-app/.env` is specifically loaded by the client container.
@@ -113,8 +111,8 @@ The `sqlserver-init` service automatically runs the database initialization scri
 
 **Note:** The init script runs only once when the containers are first started. If you modify `init-db.sql` and need to re-run it:
 ```bash
-docker-compose down -v
-docker-compose up
+docker compose down -v
+docker compose up
 ```
 
 ## Quick Start
@@ -123,62 +121,62 @@ docker-compose up
 
 1. **Start all services:**
    ```bash
-   docker-compose up
+   docker compose up
    ```
 
 2. **Start services in detached mode (background):**
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 
 3. **Access the application:**
    
    Once all containers are up and running successfully, the application is accessible at:
-   - **Frontend:** http://localhost:5173 (or your configured client port)
-   - **Eureka Dashboard:** http://localhost:8761
+   - **Frontend:** http://localhost:4700 (or your configured client port)
+   - **Eureka Dashboard:** http://localhost:4706
 
 4. **View logs:**
    ```bash
-   docker-compose logs -f
+   docker compose logs -f
    ```
 
 4. **Stop all services:**
    ```bash
-   docker-compose down
+   docker compose down
    ```
 
 5. **Stop services and remove volumes:**
    ```bash
-   docker-compose down -v
+   docker compose down -v
    ```
 
 ## Service-Specific Commands
 
 ### Start Only Database Services
 ```bash
-docker-compose up sqlserver sqlserver-init
+docker compose up sqlserver sqlserver-init
 ```
 
 ### Start Backend Services Only
 ```bash
-docker-compose up svc-discovery-service svc-fd-discovery svc-succinctness svc-coverage svc-genuineness svc-entropy
+docker compose up svc-discovery-service svc-fd-discovery svc-succinctness svc-coverage svc-genuineness svc-entropy
 ```
 
 ### Start Frontend Only
 ```bash
-docker-compose up client
+docker compose up client
 ```
 
 ### Rebuild Specific Service
 ```bash
-docker-compose build svc-fd-discovery
-docker-compose up -d svc-fd-discovery
+docker compose build svc-fd-discovery
+docker compose up -d svc-fd-discovery
 ```
 
 ### Rebuild All Services
 ```bash
-docker-compose build --no-cache
-docker-compose up -d
+docker compose build --no-cache
+docker compose up -d
 ```
 
 ## Health Checks
@@ -186,17 +184,17 @@ docker-compose up -d
 All services include health checks. To verify service status:
 
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
 Individual service health endpoints:
-- Discovery Service: http://localhost:8761/actuator/health
-- FD Discovery: http://localhost:8081/actuator/health
-- Succinctness: http://localhost:8082/actuator/health
-- Coverage: http://localhost:8083/actuator/health
-- Genuineness: http://localhost:8084/actuator/health
-- Entropy: http://localhost:8085/actuator/health
-- Eureka Dashboard: http://localhost:8761
+- Discovery Service: http://localhost:4706/actuator/health
+- FD Discovery: http://localhost:4705/actuator/health
+- Succinctness: http://localhost:4704/actuator/health
+- Coverage: http://localhost:4703/actuator/health
+- Genuineness: http://localhost:4702/actuator/health
+- Entropy: http://localhost:4701/actuator/health
+- Eureka Dashboard: http://localhost:4706
 
 ## Troubleshooting
 
@@ -205,7 +203,7 @@ Individual service health endpoints:
 Check what's using the port:
 ```bash
 # Windows
-netstat -ano | findstr :8081
+netstat -ano | findstr :4701
 
 # Stop the service or change the port in docker-compose.yml
 ```
@@ -214,9 +212,9 @@ netstat -ano | findstr :8081
 
 To completely reset the environment:
 ```bash
-docker-compose down -v
+docker compose down -v
 docker system prune -a
-docker-compose up --build
+docker compose up --build
 ```
 
 
