@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -36,6 +37,7 @@ public class DatasetController {
         File[] files = datasetsDir.listFiles((dir, name) -> name.toLowerCase().endsWith(".csv"));
 
         if (files != null) {
+            Arrays.sort(files);
             for (File file : files) {
                 csvFiles.add(file.getName());
             }

@@ -62,13 +62,13 @@ public class JobWorker {
         JobQueue fdResult = service.findLatestFinishedFDDiscovery(filename)
                 .orElseThrow(() -> new Exception("No FD-DISCOVERY result found for filename: " + filename));
 
-        // calculate succinctness based on the fdResult's ResultData
-        List<Double> scores = calculateSuccinctness(fdResult.getResultData(), filename);
+        // calculate coverage based on the fdResult's ResultData
+        List<Double> scores = calculateCoverage(fdResult.getResultData(), filename);
 
         return scores;
     }
 
-    private List<Double> calculateSuccinctness(String resultDataJson, String filename) throws Exception {
+    private List<Double> calculateCoverage(String resultDataJson, String filename) throws Exception {
         List<_FunctionalDependencyGroup> fdGroup = new ArrayList<>();
         
         JsonNode jsonArray = objectMapper.readTree(resultDataJson);
@@ -89,7 +89,6 @@ public class JobWorker {
         
         _CoverageCalculator calc = new _CoverageCalculator();
         String fullName = filename + ".csv";
-        // Map<_FunctionalDependencyGroup, Double> results = calc.computeMetrics(fdGroup, fullName);
         List<Double> results = calc.computeMetrics(fdGroup, fullName);
 
         return results;

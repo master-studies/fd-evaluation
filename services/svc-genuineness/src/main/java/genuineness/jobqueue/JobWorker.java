@@ -63,13 +63,13 @@ public class JobWorker {
         JobQueue fdResult = service.findLatestFinishedFDDiscovery(filename)
                 .orElseThrow(() -> new Exception("No FD-DISCOVERY result found for filename: " + filename));
 
-        // calculate succinctness based on the fdResult's ResultData
-        List<Double> scores = calculateSuccinctness(fdResult.getResultData(), filename);
+        // calculate genuineness based on the fdResult's ResultData
+        List<Double> scores = calculateGenuineness(fdResult.getResultData(), filename);
 
         return scores;
     }
 
-    private List<Double> calculateSuccinctness(String resultDataJson, String filename) throws Exception {
+    private List<Double> calculateGenuineness(String resultDataJson, String filename) throws Exception {
         List<_FunctionalDependencyGroup> fdGroup = new ArrayList<>();
         
         JsonNode jsonArray = objectMapper.readTree(resultDataJson);

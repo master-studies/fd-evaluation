@@ -41,17 +41,6 @@ public class ApiController {
 			_SuccinctnessCalculator calc = new _SuccinctnessCalculator();
 			List<Double> results = calc.computeMetrics(fds);
 
-			// Convert results to response DTOs
-			// List<SuccinctnessResultDto> resp = results.stream()
-			// 		.map(e -> {
-			// 			_FunctionalDependencyGroup fd = e.getKey();
-			// 			IntList vals = fd.getValues();
-			// 			List<Integer> values = new ArrayList<>();
-			// 			for (int i = 0; i < vals.size(); i++) values.add(vals.getInt(i));
-			// 			return new SuccinctnessResultDto(values, fd.getAttributeID(), e.getValue());
-			// 		})
-			// 		.collect(Collectors.toList());
-
 			return ResponseEntity.ok(results);
 
 		} catch (IOException ex) {
