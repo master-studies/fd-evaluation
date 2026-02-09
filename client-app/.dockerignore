@@ -19,10 +19,7 @@ pnpm-debug.log
 *.swn
 *.DS_Store
 
-# Environment files (sensitive)
-.env
-.env.local
-.env.*.local
+
 
 # Docker files
 Dockerfile
@@ -38,12 +35,3 @@ README.md
 *.test.tsx
 *.spec.ts
 *.spec.tsx
-
-# Config files not needed in image
-.eslintrc.cjs
-.prettierrc
-vite.config.ts
-tsconfig*.json
-eslint.config.js
-postcss.config.js
-tailwind.config.js

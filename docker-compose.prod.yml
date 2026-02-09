@@ -197,8 +197,17 @@ services:
       target: ${CLIENT_BUILD_TARGET:-production}
     container_name: client-app
     ports:
-      - "4700:4700"
+      - "4700:80"
     env_file:
       - ./client-app/.env
     networks:
       - microservices-network
+    depends_on:
+      - svc-discovery-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:80/health || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s

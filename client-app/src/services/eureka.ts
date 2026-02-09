@@ -115,18 +115,34 @@ export class EurekaClient {
   }
 
 
-  getServiceUrl(instance: EurekaInstance, useSecure: boolean = false): string {
+
+  getServiceUrl(serviceName: string, useSecure: boolean = false): string {
     const protocol = useSecure ? 'https' : 'http';
-    const port = useSecure ? instance.securePort.$ : instance.port.$;
-    const host = instance.hostName || instance.ipAddr;
-    return `${protocol}://${host}:${port}`;
+    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+    const port = typeof window !== 'undefined' && window.location.port ? `:${window.location.port}` : '';
+    
+    // Map service names to nginx proxy paths
+    const serviceProxyMap: Record<string, string> = {
+      'FD-DISCOVERY-SERVICE': '/fd-discovery',
+      'SUCCINCTNESS-SERVICE': '/succinctness',
+      'COVERAGE-SERVICE': '/coverage',
+      'GENUINENESS-SERVICE': '/genuineness',
+      'ENTROPY-SERVICE': '/entropy',
+      'RELATIONAL_INFORMATION_CONTENT': '/entropy',
+    };
+    
+    const upperName = serviceName.toUpperCase();
+    const proxyPath = serviceProxyMap[upperName] || '';
+    
+    return `${protocol}://${host}${port}${proxyPath}`;
   }
 
   async getServiceUrlForCall(serviceName: string, useSecure: boolean = false): Promise<string | null> {
     try {
       const instances = await this.getServiceInstances(serviceName);
       const instance = instances[0];
-      return instance?.status === 'UP' ? this.getServiceUrl(instance, useSecure) : null;
+      if (instance?.status !== 'UP') return null;
+      return this.getServiceUrl(serviceName, useSecure);
     } catch (error) {
       console.error(`Error getting service URL for ${serviceName}:`, error);
       return null;

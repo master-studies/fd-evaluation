@@ -34,10 +34,16 @@ RUN npm run build
 
 # Production serving stage - uses nginx
 FROM nginx:alpine AS production
+
+RUN mkdir -p /var/cache/nginx/client_temp && \
+    chown -R nginx:nginx /var/cache/nginx && \
+    chmod -R 755 /var/cache/nginx
+
 WORKDIR /usr/share/nginx/html
 
 # Copy built app from builder
 COPY --from=builder /app/dist .
+RUN chown -R nginx:nginx /usr/share/nginx/html
 
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
