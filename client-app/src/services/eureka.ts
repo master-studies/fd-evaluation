@@ -117,7 +117,9 @@ export class EurekaClient {
 
 
   getServiceUrl(serviceName: string, useSecure: boolean = false): string {
-    const protocol = useSecure ? 'https' : 'http';
+    const protocol = typeof window !== 'undefined'
+      ? window.location.protocol.replace(':', '')
+      : (useSecure ? 'https' : 'http');
     const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
     const port = typeof window !== 'undefined' && window.location.port ? `:${window.location.port}` : '';
     
