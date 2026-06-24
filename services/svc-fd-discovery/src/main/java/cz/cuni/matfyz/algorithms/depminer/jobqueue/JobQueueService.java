@@ -56,4 +56,9 @@ public class JobQueueService {
     public Optional<JobQueue> pollNextNew() {
         return repository.findNextNewForUpdate();
     }
+
+    @Transactional(readOnly = true)
+    public Optional<JobQueue> findLatestFinishedByFilename(String filename) {
+        return repository.findLatestFinishedByFilename(filename);
+    }
 }

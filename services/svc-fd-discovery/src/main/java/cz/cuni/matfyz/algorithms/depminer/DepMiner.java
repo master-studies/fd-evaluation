@@ -44,6 +44,12 @@ public class DepMiner {
 
     _FunctionalDependencyGenerator xxx;
 
+    private List<int[]> lastAbstractAR = null;
+    private List<String> lastColumnNames = null;
+
+    public List<int[]> getLastAbstractAR() { return lastAbstractAR; }
+    public List<String> getLastColumnNames() { return lastColumnNames; }
+
     public DepMiner(/*int numberOfThreads,*/_CSVTestCase input, String filename) {
 //		this.numberOfThreads = numberOfThreads;
         this.input = input;
@@ -122,13 +128,12 @@ public class DepMiner {
         ArmstrongRelationBuilder builder = new ArmstrongRelationBuilder();
         List<int[]> AR = builder.execute(maxSets);
 
-//		int index = 1;
+        this.lastAbstractAR = AR;
+        this.lastColumnNames = input.columnNames();
+
+        System.out.println("----- ABSTRACT ARMSTRONG RELATION -----");
+        System.out.println("Columns: " + String.join(", ", input.columnNames()));
         for (int[] value : AR) {
-//			if (index == 1) {
-//				String firstRow = value.replace("1", String.valueOf(0));
-//				System.out.println(firstRow);
-//			}
-//			value = value.replace("1", "" + index++);
             StringBuilder b = new StringBuilder();
             for (int index = 0; index < value.length; ++index) {
                 b.append(value[index]);
@@ -142,17 +147,20 @@ public class DepMiner {
 
         var AR_RL = builder.realworldAR(AR, input, FILENAME);
 
+        System.out.println("----- REAL-WORLD ARMSTRONG RELATION -----");
+        System.out.println(String.join(", ", input.columnNames()));
+        for (var line : AR_RL) {
+            System.out.println(String.join(", ", line));
+        }
+        System.out.println("SIZE: " + AR_RL.size());
+
         String outputFilePath = "armstrong.csv";
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFilePath))) {
             for (var line : AR_RL) {
                 for (int index = 0; index < line.size(); ++index) {
-                    System.out.print(line.get(index));
                     writer.write(line.get(index));
                     if (index < line.size() - 1) {
                         writer.write(", ");
-                        System.out.print(", ");
-                    } else {
-                        System.out.println("");
                     }
                 }
                 writer.newLine(); // Start a new line after each row
