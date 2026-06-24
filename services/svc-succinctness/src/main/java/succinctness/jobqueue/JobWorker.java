@@ -63,7 +63,10 @@ public class JobWorker {
                 .orElseThrow(() -> new Exception("No FD-DISCOVERY result found for filename: " + filename));
 
         // calculate succinctness based on the fdResult's ResultData
+        long startNs = System.nanoTime();
         List<Double> scores = calculateSuccinctness(fdResult.getResultData());
+        long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
+        LOGGER.log(Level.INFO, "[Succinctness] jobId=" + job.getJobId() + " filename=" + filename + " computeMs=" + elapsedMs);
 
         return scores;
     }

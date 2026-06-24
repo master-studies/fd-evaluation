@@ -70,7 +70,10 @@ public class JobProcessor {
                 .orElseThrow(() -> new Exception("No FD-DISCOVERY result found for filename: " + filename));
 
         // calculate succinctness based on the fdResult's ResultData
+        long startNs = System.nanoTime();
         String output = calculateEntropy(filename, fdResult.getResultData(), params.subList(1, params.size()).toArray(new String[0]));
+        long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
+        LOGGER.log(Level.INFO, "[Entropy] jobId=" + job.getJobId() + " filename=" + filename + " computeMs=" + elapsedMs);
 
         return output;
     }
