@@ -49,6 +49,7 @@ CREATE TABLE [dbo].[JobQueue] (
 	[Payload] [nvarchar](max) NULL,
 	[ServiceType] [varchar](255) NULL,
 	[ResultData] [nvarchar](max) NULL,
+	[ArmstrongData] [nvarchar](max) NULL,
 );
 GO
 
