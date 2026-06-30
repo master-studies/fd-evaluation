@@ -63,7 +63,10 @@ public class JobWorker {
                 .orElseThrow(() -> new Exception("No FD-DISCOVERY result found for filename: " + filename));
 
         // calculate coverage based on the fdResult's ResultData
+        long startNs = System.nanoTime();
         List<Double> scores = calculateCoverage(fdResult.getResultData(), filename);
+        long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
+        LOGGER.log(Level.INFO, "[Coverage] jobId=" + job.getJobId() + " filename=" + filename + " computeMs=" + elapsedMs);
 
         return scores;
     }

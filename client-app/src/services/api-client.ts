@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosRequestConfig } from 'axios';
 import { EurekaClient } from './eureka';
-import { JobSubmissionResponse, JobPollingResponse } from '@/types/eureka';
+import { JobSubmissionResponse, JobPollingResponse, NegativeExampleTarget, NegativeExamplesResponse } from '@/types/eureka';
 
 export interface ApiCallOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
@@ -128,6 +128,35 @@ export class ApiClient {
     }
 
     throw new Error(`Unexpected response status ${response.status} when polling job`);
+  }
+
+  async answerSuspiciousQuestion(
+    serviceName: string,
+    jobId: string,
+    genuine: boolean
+  ): Promise<boolean> {
+    try {
+      const response = await this.callServiceEndpoint(
+        serviceName,
+        `/jobs/${jobId}/answer`,
+        { method: 'POST', params: { genuine: genuine ? 'true' : 'false' } }
+      );
+      return response.status === 200;
+    } catch {
+      return false;
+    }
+  }
+
+  async buildNegativeExamples(
+    serviceName: string,
+    filename: string,
+    targets: NegativeExampleTarget[]
+  ): Promise<NegativeExamplesResponse> {
+    const response = await this.callServiceEndpoint(serviceName, '/negative-examples', {
+      method: 'POST',
+      data: { filename, targets },
+    });
+    return response.data as NegativeExamplesResponse;
   }
 
   async waitForJobCompletion<T = unknown>(

@@ -131,6 +131,7 @@ export class EurekaClient {
       'GENUINENESS-SERVICE': '/genuineness',
       'ENTROPY-SERVICE': '/entropy',
       'RELATIONAL_INFORMATION_CONTENT': '/entropy',
+      'EVALUATION-PATTERNS-SERVICE': '/evaluation-patterns',
     };
     
     const upperName = serviceName.toUpperCase();

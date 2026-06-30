@@ -47,6 +47,9 @@ public class JobQueue {
     @Column(name = "ResultData", columnDefinition = "NVARCHAR(MAX)")
     private String resultData;
 
+    @Column(name = "ArmstrongData", columnDefinition = "NVARCHAR(MAX)")
+    private String armstrongData;
+
     public UUID getJobId() {
         return jobId;
     }
@@ -113,5 +116,13 @@ public class JobQueue {
 
     public void setResultData(String resultData) {
         this.resultData = resultData;
+    }
+
+    public String getArmstrongData() {
+        return armstrongData;
+    }
+
+    public void setArmstrongData(String armstrongData) {
+        this.armstrongData = armstrongData;
     }
 }

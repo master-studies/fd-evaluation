@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import cz.cuni.matfyz.algorithms.depminer.DepMiner;
 import cz.cuni.matfyz.algorithms.depminer.model._CSVTestCase;
 import cz.cuni.matfyz.algorithms.depminer.model._FunctionalDependencyOutput;
+import cz.cuni.matfyz.algorithms.depminer.model.ArmstrongStorageDto;
 
 @Component
 public class JobWorker {
@@ -38,28 +39,30 @@ public class JobWorker {
     private void processJob(JobQueue job) {
         JobQueue running = service.markRunning(job);
         try {
-            List<_FunctionalDependencyOutput> result = doWork(running);
-            
-            // Serialize to JSON and store in DB
-            String resultJson = objectMapper.writeValueAsString(result);
-            running.setResultData(resultJson);
-            
+            String filename = running.getPayload();
+            String fullName = filename + ".csv";
+
+            _CSVTestCase input = new _CSVTestCase(fullName, false);
+            DepMiner miner = new DepMiner(input, fullName);
+
+            long startNs = System.nanoTime();
+            List<_FunctionalDependencyOutput> result = miner.execute();
+            long elapsedMs = (System.nanoTime() - startNs) / 1_000_000;
+            LOGGER.log(Level.INFO, "[FD-Discovery] jobId=" + running.getJobId()
+                    + " filename=" + filename + " computeMs=" + elapsedMs);
+
+            // ResultData: unchanged JSON array format — all other services depend on this
+            running.setResultData(objectMapper.writeValueAsString(result));
+
+            // ArmstrongData: new column, only read by the negative-examples endpoint
+            ArmstrongStorageDto arDto = new ArmstrongStorageDto(
+                    miner.getLastColumnNames(), miner.getLastAbstractAR());
+            running.setArmstrongData(objectMapper.writeValueAsString(arDto));
+
             service.markFinished(running);
         } catch (Exception ex) {
             service.markFailed(running, ex.getMessage());
             LOGGER.log(Level.SEVERE, "Job failed: " + running.getJobId(), ex);
         }
-    }
-
-    private List<_FunctionalDependencyOutput> doWork(JobQueue job) throws Exception {
-        // Extract filename from payload
-        String filename = job.getPayload();
-        boolean hasHeader = false;
-        String fullName = filename + ".csv";
-        
-        _CSVTestCase input = new _CSVTestCase(fullName, hasHeader);
-        DepMiner miner = new DepMiner(input, fullName);
-        
-        return miner.execute();
     }
 }

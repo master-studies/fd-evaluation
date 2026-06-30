@@ -52,20 +52,63 @@ export interface EurekaApplications {
 // Job Queue Types
 export type JobStatus = 'NEW' | 'RUNNING' | 'FINISHED' | 'FAILED';
 
-export type ServiceType = 'FD_DISCOVERY' | 'SUCCINCTNESS' | 'COVERAGE' | 'GENUINENESS' | 'RELATIONAL_INFORMATION_CONTENT';
+export type ServiceType = 'FD_DISCOVERY' | 'SUCCINCTNESS' | 'COVERAGE' | 'GENUINENESS' | 'RELATIONAL_INFORMATION_CONTENT' | 'EVALUATION_PATTERNS';
 
 export interface JobSubmissionResponse {
   jobId: string;
   status: JobStatus;
-  serviceType?: ServiceType; // Optional, for backend compatibility
+  serviceType?: ServiceType;
+}
+
+export interface SuspiciousQuestion {
+  lhs: string[];
+  rhs: string;
+  text: string;
+}
+
+export interface CompletedRhsEntry {
+  rhs: string;
+  antichain: string[];
+}
+
+export interface EvalProcessingState {
+  phase: 'processing' | 'awaiting_input';
+  completedRhs: CompletedRhsEntry[];
+  currentRhs: string | null;
+  question: SuspiciousQuestion | null;
 }
 
 export interface JobPollingResponse<T = unknown> {
   jobId: string;
   status: JobStatus;
-  serviceType?: ServiceType; // Optional, for backend compatibility
+  serviceType?: ServiceType;
   result?: T;
   error?: string;
+  // evaluation-patterns specific
+  resultCsv?: string;
+  processingState?: EvalProcessingState | null;
+}
+
+// Negative Examples types
+export interface NegativeExampleTarget {
+  lhs: string[];
+  rhs: string;
+}
+
+export interface NegativeExampleRow {
+  values: string[];
+  type: 'base' | 'negative' | 'existing';
+}
+
+export interface NegativeExampleEntry {
+  lhs: string[];
+  rhs: string;
+  rows: NegativeExampleRow[];
+}
+
+export interface NegativeExamplesResponse {
+  columnNames: string[];
+  negativeExamples: NegativeExampleEntry[];
 }
 
 export interface EurekaResponse {

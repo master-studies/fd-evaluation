@@ -12,7 +12,8 @@ import {
 import { ApiClient } from '@/services/api-client';
 import { EurekaClient } from '@/services/eureka';
 import { JobStatus, ServiceType } from '@/types/eureka';
-import { Loader2, Eye, Calculator, BarChart2, Target, Info } from 'lucide-react';
+import { Loader2, Eye, Calculator, BarChart2, Target, Info, Network } from 'lucide-react';
+import { SuspiciousQuestion, CompletedRhsEntry, NegativeExamplesResponse } from '@/types/eureka';
 
 interface ServiceDiscoveryProps {
   eurekaUrl: string;
@@ -28,6 +29,7 @@ const SERVICES = {
   COVERAGE: 'COVERAGE-SERVICE',
   GENUINENESS: 'GENUINENESS-SERVICE',
   RELATIONAL_INFORMATION_CONTENT: 'RELATIONAL_INFORMATION_CONTENT',
+  EVALUATION_PATTERNS: 'EVALUATION-PATTERNS-SERVICE',
 } as const;
 
 // Service type mapping to service names
@@ -37,6 +39,7 @@ const SERVICE_TYPE_MAP: Record<ServiceType, string> = {
   COVERAGE: SERVICES.COVERAGE,
   GENUINENESS: SERVICES.GENUINENESS,
   RELATIONAL_INFORMATION_CONTENT: SERVICES.RELATIONAL_INFORMATION_CONTENT,
+  EVALUATION_PATTERNS: SERVICES.EVALUATION_PATTERNS,
 };
 
 // Types
@@ -77,6 +80,34 @@ interface EntropyOptions {
   };
 }
 
+interface EvalPatternsState {
+  show: boolean;
+  isRunning: boolean;
+  jobId: string | null;
+  completedRhs: CompletedRhsEntry[];
+  currentRhs: string | null;
+  question: SuspiciousQuestion | null;
+  resultCsv: string | null;
+  error: string | null;
+  negativeExamplesLoading: boolean;
+  negativeExamplesResult: NegativeExamplesResponse | null;
+  negativeExamplesError: string | null;
+}
+
+const createInitialEvalPatternsState = (): EvalPatternsState => ({
+  show: false,
+  isRunning: false,
+  jobId: null,
+  completedRhs: [],
+  currentRhs: null,
+  question: null,
+  resultCsv: null,
+  error: null,
+  negativeExamplesLoading: false,
+  negativeExamplesResult: null,
+  negativeExamplesError: null,
+});
+
 // Job State for individual service
 interface ServiceJobState {
   jobId: string | null;
@@ -94,6 +125,7 @@ const createInitialJobStates = (): JobStateMap => ({
   COVERAGE: { jobId: null, status: null, isPolling: false, error: null },
   GENUINENESS: { jobId: null, status: null, isPolling: false, error: null },
   RELATIONAL_INFORMATION_CONTENT: { jobId: null, status: null, isPolling: false, error: null },
+  EVALUATION_PATTERNS: { jobId: null, status: null, isPolling: false, error: null },
 });
 
 const createInitialCalculations = (): Record<string, CalculationState> => ({
@@ -145,6 +177,9 @@ export function ServiceDiscovery({ eurekaUrl }: ServiceDiscoveryProps) {
   const itemsPerPage = 10;
   const datasetsPerPage = 5;
   const pollIntervalRefs = useRef<Record<string, Record<ServiceType, NodeJS.Timeout | null>>>({});
+  const evalPollRefs = useRef<Record<string, NodeJS.Timeout | null>>({});
+
+  const [evalPatternsStates, setEvalPatternsStates] = useState<Record<string, EvalPatternsState>>({});
 
   const eurekaClient = new EurekaClient(eurekaUrl);
   const apiClient = new ApiClient(eurekaUrl);
@@ -167,6 +202,7 @@ export function ServiceDiscovery({ eurekaUrl }: ServiceDiscoveryProps) {
     [SERVICES.COVERAGE]: true,
     [SERVICES.GENUINENESS]: true,
     [SERVICES.RELATIONAL_INFORMATION_CONTENT]: true,
+    [SERVICES.EVALUATION_PATTERNS]: true,
   });
   const [entropyMinimized, setEntropyMinimized] = useState<Set<string>>(() => new Set());
   const [minimizedDatasets, setMinimizedDatasets] = useState<Set<string>>(() => {
@@ -182,12 +218,14 @@ export function ServiceDiscovery({ eurekaUrl }: ServiceDiscoveryProps) {
         eurekaClient.isServiceUp(SERVICES.COVERAGE),
         eurekaClient.isServiceUp(SERVICES.GENUINENESS),
         eurekaClient.isServiceUp(SERVICES.RELATIONAL_INFORMATION_CONTENT),
+        eurekaClient.isServiceUp(SERVICES.EVALUATION_PATTERNS),
       ]);
       setServiceAvailability({
         [SERVICES.SUCCINCTNESS]: checks[0].isUp,
         [SERVICES.COVERAGE]: checks[1].isUp,
         [SERVICES.GENUINENESS]: checks[2].isUp,
         [SERVICES.RELATIONAL_INFORMATION_CONTENT]: checks[3].isUp,
+        [SERVICES.EVALUATION_PATTERNS]: checks[4].isUp,
       });
     };
     checkServices();
@@ -270,6 +308,7 @@ export function ServiceDiscovery({ eurekaUrl }: ServiceDiscoveryProps) {
         COVERAGE: null,
         GENUINENESS: null,
         RELATIONAL_INFORMATION_CONTENT: null,
+        EVALUATION_PATTERNS: null,
       };
     }
   };
@@ -432,7 +471,7 @@ export function ServiceDiscovery({ eurekaUrl }: ServiceDiscoveryProps) {
       // the backend expects the file parameter as 'file' (common convention)
       formData.append('file', selectedFile, selectedFile.name);
 
-      // Upload to all three services: FD-DISCOVERY, COVERAGE, and GENUINENESS
+      // Upload to all services that need the dataset file
       const uploadPromises = [
         apiClient.callServiceEndpoint(SERVICE_NAME, '/dataset/upload', {
           method: 'POST',
@@ -443,6 +482,10 @@ export function ServiceDiscovery({ eurekaUrl }: ServiceDiscoveryProps) {
           data: formData,
         }),
         apiClient.callServiceEndpoint(SERVICES.GENUINENESS, '/dataset/upload', {
+          method: 'POST',
+          data: formData,
+        }),
+        apiClient.callServiceEndpoint(SERVICES.EVALUATION_PATTERNS, '/dataset/upload', {
           method: 'POST',
           data: formData,
         }),
@@ -773,10 +816,11 @@ export function ServiceDiscovery({ eurekaUrl }: ServiceDiscoveryProps) {
     return () => {
       Object.values(pollIntervalRefs.current).forEach(map => {
         Object.values(map).forEach(interval => {
-          if (interval) {
-            clearInterval(interval);
-          }
+          if (interval) clearInterval(interval);
         });
+      });
+      Object.values(evalPollRefs.current).forEach(interval => {
+        if (interval) clearInterval(interval);
       });
     };
   }, []);
@@ -1040,6 +1084,152 @@ export function ServiceDiscovery({ eurekaUrl }: ServiceDiscoveryProps) {
     }
   };
 
+  // ── Evaluation Patterns helpers ─────────────────────────────────────────
+
+  const updateEvalState = (datasetName: string, updates: Partial<EvalPatternsState>) => {
+    setEvalPatternsStates(prev => ({
+      ...prev,
+      [datasetName]: { ...(prev[datasetName] ?? createInitialEvalPatternsState()), ...updates },
+    }));
+  };
+
+  const stopEvalPolling = (datasetName: string) => {
+    const interval = evalPollRefs.current[datasetName];
+    if (interval) {
+      clearInterval(interval);
+      evalPollRefs.current[datasetName] = null;
+    }
+  };
+
+  const pollEvaluationPatterns = (datasetName: string, jobId: string) => {
+    stopEvalPolling(datasetName);
+
+    const poll = async () => {
+      try {
+        const resp = await apiClient.pollJobStatus(SERVICES.EVALUATION_PATTERNS, jobId);
+
+        if (resp.status === 'FINISHED') {
+          stopEvalPolling(datasetName);
+          updateEvalState(datasetName, {
+            isRunning: false,
+            resultCsv: resp.resultCsv ?? null,
+            completedRhs: resp.processingState?.completedRhs ?? [],
+            currentRhs: null,
+            question: null,
+          });
+        } else if (resp.status === 'FAILED') {
+          stopEvalPolling(datasetName);
+          updateEvalState(datasetName, {
+            isRunning: false,
+            error: resp.error ?? 'Job failed',
+            question: null,
+          });
+        } else {
+          // RUNNING or NEW — update progress/question from processingState
+          const ps = resp.processingState;
+          updateEvalState(datasetName, {
+            completedRhs: ps?.completedRhs ?? [],
+            currentRhs: ps?.currentRhs ?? null,
+            question: ps?.question ?? null,
+          });
+        }
+      } catch (err) {
+        console.error('Error polling evaluation patterns job:', err);
+      }
+    };
+
+    poll();
+    evalPollRefs.current[datasetName] = setInterval(poll, 2000);
+  };
+
+  const handleExtractRules = async (datasetName: string) => {
+    const state = datasetStates[datasetName];
+    if (!state?.currentFilename) return;
+
+    updateEvalState(datasetName, {
+      ...createInitialEvalPatternsState(),
+      show: true,
+      isRunning: true,
+    });
+
+    try {
+      const jobResp = await apiClient.submitJob(SERVICES.EVALUATION_PATTERNS, '/jobs', {
+        filename: state.currentFilename,
+      });
+      updateEvalState(datasetName, { jobId: jobResp.jobId });
+      pollEvaluationPatterns(datasetName, jobResp.jobId);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Extract Rules job failed';
+      updateEvalState(datasetName, { isRunning: false, error: msg });
+    }
+  };
+
+  const handleEvalAnswer = async (datasetName: string, genuine: boolean) => {
+    const evalState = evalPatternsStates[datasetName];
+    if (!evalState?.jobId) return;
+    // Optimistically clear the question so the dialog closes immediately
+    updateEvalState(datasetName, { question: null });
+    await apiClient.answerSuspiciousQuestion(SERVICES.EVALUATION_PATTERNS, evalState.jobId, genuine);
+  };
+
+  const handleBuildNegativeExamples = async (datasetName: string) => {
+    const evalState = evalPatternsStates[datasetName];
+    if (!evalState?.resultCsv) return;
+
+    // datasetName keeps the ".csv" suffix from the dataset list; the DB Payload stores
+    // the name WITHOUT extension (set via state.currentFilename in job submission).
+    const filename = datasetStates[datasetName]?.currentFilename ?? datasetName;
+
+    // Parse antichain CSV (format: RHS,FakeLhs with header row)
+    // Each data row: rhs,"{col1,col2,...}"
+    const lines = evalState.resultCsv.trim().split('\n').slice(1); // skip header
+    const targets: { lhs: string[]; rhs: string }[] = [];
+    for (const line of lines) {
+      const firstComma = line.indexOf(',');
+      if (firstComma < 0) continue;
+      const rhs = line.substring(0, firstComma).trim();
+      const lhsRaw = line.substring(firstComma + 1).trim().replace(/^"|"$/g, ''); // strip outer quotes
+      const lhs = lhsRaw.replace(/^\{|\}$/g, '').split(',').map(s => s.trim()).filter(Boolean);
+      if (rhs && lhs.length > 0) targets.push({ lhs, rhs });
+    }
+
+    if (targets.length === 0) return;
+
+    updateEvalState(datasetName, {
+      negativeExamplesLoading: true,
+      negativeExamplesResult: null,
+      negativeExamplesError: null,
+    });
+
+    try {
+      const result = await apiClient.buildNegativeExamples(SERVICE_NAME, filename, targets);
+      updateEvalState(datasetName, { negativeExamplesLoading: false, negativeExamplesResult: result });
+    } catch (err) {
+      updateEvalState(datasetName, {
+        negativeExamplesLoading: false,
+        negativeExamplesError: err instanceof Error ? err.message : 'Unknown error',
+      });
+    }
+  };
+
+  const downloadEvalPatternsCSV = (datasetName: string) => {
+    const csv = evalPatternsStates[datasetName]?.resultCsv;
+    if (!csv) return;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.setAttribute('href', URL.createObjectURL(blob));
+    link.setAttribute('download', `${datasetName.replace('.csv', '')}_fake_lhs.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleCloseEvalPanel = (datasetName: string) => {
+    stopEvalPolling(datasetName);
+    updateEvalState(datasetName, { show: false });
+  };
+
   const downloadResultsAsCSV = (datasetName: string) => {
     const state = datasetStates[datasetName];
     if (!state || state.extractRules.length === 0) return;
@@ -1112,6 +1302,7 @@ export function ServiceDiscovery({ eurekaUrl }: ServiceDiscoveryProps) {
       });
       delete pollIntervalRefs.current[datasetName];
     }
+    stopEvalPolling(datasetName);
 
     setSelectedDatasets(prev => prev.filter(name => name !== datasetName));
     setMinimizedDatasets(prev => {
@@ -1408,6 +1599,21 @@ export function ServiceDiscovery({ eurekaUrl }: ServiceDiscoveryProps) {
                   >
                     <Info className="h-4 w-4 mr-2" />
                     {calculations.relationalInformationContent.isCalculating ? 'Calculating...' : 'Entropy'}
+                  </Button>
+
+                  <Button
+                    onClick={() => handleExtractRules(datasetName)}
+                    disabled={
+                      extractRules.length === 0 ||
+                      !state.currentFilename ||
+                      !serviceAvailability[SERVICES.EVALUATION_PATTERNS] ||
+                      (evalPatternsStates[datasetName]?.isRunning ?? false)
+                    }
+                    className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+                    size="sm"
+                  >
+                    <Network className="h-4 w-4 mr-2" />
+                    {(evalPatternsStates[datasetName]?.isRunning ?? false) ? 'Running...' : 'Extract Rules'}
                   </Button>
                 </div>
               )}
@@ -1886,6 +2092,252 @@ export function ServiceDiscovery({ eurekaUrl }: ServiceDiscoveryProps) {
               </div>
             </CardContent>
             )}
+          </Card>
+        );
+      })}
+
+      {/* Evaluation Patterns processing panels — one per dataset */}
+      {selectedDatasets.map(datasetName => {
+        const evalState = evalPatternsStates[datasetName];
+        if (!evalState?.show) return null;
+
+        return (
+          <Card
+            key={`${datasetName}-eval`}
+            className="border-2 border-orange-400 shadow-lg transition-all duration-300 ease-in-out"
+          >
+            <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950 dark:to-amber-950">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Network className="h-5 w-5 text-orange-600" />
+                    {datasetName} — Extract Rules
+                  </CardTitle>
+                  {!evalState.isRunning && !evalState.resultCsv && !evalState.error && (
+                    <CardDescription>Lattice-based FD quality assessment</CardDescription>
+                  )}
+                </div>
+                <Button
+                  onClick={() => handleCloseEvalPanel(datasetName)}
+                  variant="ghost"
+                  size="sm"
+                  className="hover:bg-gray-200 dark:hover:bg-gray-700 text-lg w-8 h-8 p-0 flex items-center justify-center"
+                >
+                  ✕
+                </Button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="pt-6 space-y-4 transition-all duration-300 ease-in-out animate-in fade-in slide-in-from-top-2">
+
+              {/* Error banner */}
+              {evalState.error && (
+                <div className="p-3 bg-red-50 dark:bg-red-950 border border-red-300 dark:border-red-700 rounded-lg text-sm text-red-700 dark:text-red-300">
+                  Error: {evalState.error}
+                </div>
+              )}
+
+              {/* Progress list */}
+              {(evalState.isRunning || evalState.resultCsv || evalState.completedRhs.length > 0) && (
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    RHS columns:
+                  </p>
+
+                  {/* Completed RHS rows — show antichain */}
+                  {evalState.completedRhs.map(({ rhs, antichain }) => (
+                    <div
+                      key={rhs}
+                      className="px-3 py-2 rounded-lg bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-5 w-5 bg-green-600 rounded-full flex items-center justify-center text-white text-xs shrink-0">
+                          ✓
+                        </div>
+                        <span className="font-mono text-sm font-semibold text-green-800 dark:text-green-200">{rhs}</span>
+                      </div>
+                      {antichain.length > 0 ? (
+                        <div className="mt-1 ml-8 flex flex-wrap gap-1">
+                          {antichain.map(lhs => (
+                            <span
+                              key={lhs}
+                              className="inline-block px-2 py-0.5 rounded bg-green-100 dark:bg-green-900 border border-green-300 dark:border-green-700 font-mono text-xs text-green-700 dark:text-green-300"
+                            >
+                              {lhs}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-1 ml-8 text-xs text-green-600 dark:text-green-400 italic">no fake LHS</p>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Currently running RHS row */}
+                  {evalState.currentRhs && evalState.isRunning && (
+                    <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
+                      <Loader2 className="h-5 w-5 animate-spin text-blue-600 dark:text-blue-400 shrink-0" />
+                      <span className="font-mono text-sm text-blue-800 dark:text-blue-200">
+                        {evalState.currentRhs}
+                      </span>
+                      <span className="text-xs text-blue-600 dark:text-blue-400">processing…</span>
+                    </div>
+                  )}
+
+                  {/* All done indicator */}
+                  {!evalState.isRunning && evalState.resultCsv && (
+                    <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-green-50 dark:bg-green-950 border-2 border-green-400 dark:border-green-600">
+                      <div className="h-5 w-5 bg-green-600 rounded-full flex items-center justify-center text-white text-xs shrink-0">
+                        ✓
+                      </div>
+                      <span className="text-sm font-semibold text-green-800 dark:text-green-200">
+                        Analysis complete
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SUSPICIOUS question dialog */}
+              {evalState.question && evalState.isRunning && (
+                <div className="p-4 rounded-lg border-2 border-amber-400 bg-amber-50 dark:bg-amber-950 space-y-3">
+                  <div className="flex items-start gap-2">
+                    <span className="text-amber-600 dark:text-amber-400 text-lg shrink-0">?</span>
+                    <div className="space-y-1">
+                      <p className="font-semibold text-amber-900 dark:text-amber-100 text-sm">
+                        User input needed
+                      </p>
+                      <p className="text-sm text-amber-800 dark:text-amber-200">
+                        {evalState.question.text}
+                      </p>
+                      <p className="text-xs text-amber-600 dark:text-amber-400 font-mono">
+                        {'{' + evalState.question.lhs.join(', ') + '}'} &rarr; {evalState.question.rhs}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={() => handleEvalAnswer(datasetName, true)}
+                      className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-md"
+                      size="sm"
+                    >
+                      Yes, genuine
+                    </Button>
+                    <Button
+                      onClick={() => handleEvalAnswer(datasetName, false)}
+                      className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-md"
+                      size="sm"
+                    >
+                      No, fake
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Download button */}
+              {evalState.resultCsv && (
+                <div className="pt-2">
+                  <Button
+                    onClick={() => downloadEvalPatternsCSV(datasetName)}
+                    className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-md hover:shadow-lg transition-all"
+                    size="sm"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Download fake LHS antichain
+                  </Button>
+                </div>
+              )}
+
+              {/* Negative Examples section */}
+              {evalState.resultCsv && (
+                <div className="pt-3 border-t border-gray-200 dark:border-gray-700 mt-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Negative Examples
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={() => handleBuildNegativeExamples(datasetName)}
+                      disabled={evalState.negativeExamplesLoading}
+                      className="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+                    >
+                      {evalState.negativeExamplesLoading ? (
+                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Building...</>
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                          Build Negative Examples
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {evalState.negativeExamplesError && (
+                    <p className="text-sm text-red-600 dark:text-red-400">{evalState.negativeExamplesError}</p>
+                  )}
+
+                  {evalState.negativeExamplesResult && (
+                    <div className="space-y-4 mt-2">
+                      {evalState.negativeExamplesResult.negativeExamples.map((entry, i) => (
+                        <div key={i} className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                          <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                            <span className="font-mono text-sm font-semibold text-orange-600 dark:text-orange-400">
+                              {'{' + entry.lhs.join(', ') + '}'} → {entry.rhs}
+                            </span>
+                            <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">(fake FD — negative example shown in yellow)</span>
+                          </div>
+                          <div className="overflow-x-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  {evalState.negativeExamplesResult!.columnNames.map(col => (
+                                    <TableHead
+                                      key={col}
+                                      className={
+                                        entry.lhs.includes(col)
+                                          ? 'bg-blue-50 dark:bg-blue-950 font-semibold'
+                                          : col === entry.rhs
+                                          ? 'bg-orange-50 dark:bg-orange-950 font-semibold'
+                                          : ''
+                                      }
+                                    >
+                                      {col}
+                                    </TableHead>
+                                  ))}
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {entry.rows.map((row, ri) => (
+                                  <TableRow
+                                    key={ri}
+                                    className={
+                                      row.type === 'negative'
+                                        ? 'bg-yellow-100 dark:bg-yellow-900/40'
+                                        : row.type === 'base'
+                                        ? 'bg-red-50 dark:bg-red-950/30'
+                                        : ''
+                                    }
+                                  >
+                                    {row.values.map((val, ci) => (
+                                      <TableCell key={ci} className="text-xs font-mono">{val}</TableCell>
+                                    ))}
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </CardContent>
           </Card>
         );
       })}
