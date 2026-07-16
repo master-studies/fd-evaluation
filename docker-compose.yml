@@ -196,7 +196,7 @@ services:
       dockerfile: Dockerfile
     container_name: svc-evaluation-patterns
     ports:
-      - "4699:4699"
+      - "4707:4707"
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -205,12 +205,12 @@ services:
     env_file:
       - ./.env
     environment:
-      SERVER_PORT: 4699
+      SERVER_PORT: 4707
     networks:
       - microservices-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:4699/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:4707/actuator/health || exit 1"]
       interval: 30s
       timeout: 3s
       retries: 3

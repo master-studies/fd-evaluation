@@ -190,6 +190,32 @@ services:
       retries: 3
       start_period: 5s
 
+  svc-evaluation-patterns:
+    build:
+      context: ./services/svc-evaluation-patterns
+      dockerfile: Dockerfile
+    container_name: svc-evaluation-patterns
+    expose:
+      - "4707"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      svc-discovery-service:
+        condition: service_healthy
+    env_file:
+      - ./.env
+    environment:
+      SERVER_PORT: 4707
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:4707/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
   client:
     build:
       context: ./client-app
