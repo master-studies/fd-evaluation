@@ -15,11 +15,12 @@ Automatically executed by the sqlserver-init container on first startup.
 ### services/
 The backend microservices written in Java with Spring Boot:
 - **svc-discovery-service** - Eureka service registry for microservice discovery and registration
-- **svc-fd-discovery** - Analyzes datasets to discover functional dependencies between attributes
+- **svc-fd-discovery** - Analyzes datasets to discover functional dependencies between attributes, and generate negative-examples 
 - **svc-succinctness** - Evaluates data quality by measuring redundancy and compactness
 - **svc-coverage** - Assesses completeness and coverage of functional dependencies in datasets
 - **svc-genuineness** - Validates data authenticity and integrity against functional dependency rules
 - **svc-entropy** - Calculates information entropy to measure data uncertainty and randomness based on plaque test
+- **svc-evaluation-patterns** - Classifies functional dependencies using a heuristic rule engine, prunes the lattice to isolate a minimal antichain of fake candidates
 
 Each service is independently deployable with its own Dockerfile and Maven configuration.
 
@@ -194,6 +195,7 @@ Individual service health endpoints:
 - Coverage: http://localhost:4703/actuator/health
 - Genuineness: http://localhost:4702/actuator/health
 - Entropy: http://localhost:4701/actuator/health
+- Evaluation patterns: http://localhost:4707/actuator/health
 - Eureka Dashboard: http://localhost:4706
 
 ## Troubleshooting
