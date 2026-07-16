@@ -14,19 +14,6 @@ import java.util.stream.Collectors;
 
 /**
  * FD lattice traversal and fake-LHS antichain extraction (patterns.md Algorithm 2).
- *
- * Port of lattice_pruner.py (prune_lattice, collect_fake_lhs).
- *
- * Traversal strategy (bottom-up, level by level):
- *   1. Evaluate all seed nodes (extracted FDs) using the supplied evaluate function.
- *   2. Mark strict subsets of seeds that are not themselves seeds as GREY
- *      (known unknowns — the miner didn't find them as minimal FDs).
- *   3. For each subsequent level:
- *      - If any parent is GENUINE → inherit GENUINE (Armstrong augmentation).
- *      - If any parent is FAKE or GREY → evaluate this node.
- *      - Otherwise → unreachable, skip.
- *
- * In automated (non-interactive) mode SUSPICIOUS decisions are treated as FAKE.
  */
 public final class LatticePruner {
 
@@ -49,14 +36,6 @@ public final class LatticePruner {
 
     private LatticePruner() {}
 
-    /**
-     * Prune the lattice and return evaluation results.
-     *
-     * @param attributes  All dataset columns except the RHS (the attribute universe).
-     * @param extractedFds Seed LHS sets found by the FD miner (minimal FDs that hold).
-     * @param evaluateFn  Function mapping an LHS set to GENUINE or FAKE.
-     *                    SUSPICIOUS is resolved to FAKE internally (no interactive Q&A).
-     */
     public static LatticeResult pruneLattice(
             List<String> attributes,
             List<Set<String>> extractedFds,
@@ -85,11 +64,22 @@ public final class LatticePruner {
             status.put(new HashSet<>(lhs), evaluateFn.apply(lhs));
         }
 
+        System.out.println("[LATTICE] Step 1 – Seeds evaluated:");
+        status.forEach((lhs, st) -> System.out.printf("  {%s} -> %s%n",
+                lhs.stream().sorted().collect(Collectors.joining(",")), st));
+
         // ── Step 2: compute grey nodes ────────────────────────────────────────
         // A grey node is a strict subset of a seed that is not itself a seed.
         Set<Set<String>> grey = new HashSet<>();
         for (Set<String> lhs : extracted) {
             buildProperSubsets(lhs, grey, extracted);
+        }
+
+        if (!grey.isEmpty()) {
+            String greyStr = grey.stream()
+                    .map(s -> "{" + s.stream().sorted().collect(Collectors.joining(",")) + "}")
+                    .sorted().collect(Collectors.joining(", "));
+            System.out.println("[LATTICE] Step 2 – Grey nodes (subsets of seeds): " + greyStr);
         }
 
         int startLevel = extracted.stream().mapToInt(Set::size).min().orElse(1);
@@ -109,8 +99,17 @@ public final class LatticePruner {
 
                 if (genuineParent) {
                     status.put(new HashSet<>(node), NodeStatus.GENUINE);
+                    Set<String> trigger = parents.stream()
+                            .filter(p -> status.get(p) == NodeStatus.GENUINE)
+                            .findFirst().orElse(null);
+                    System.out.printf("[LATTICE] Pruned  {%s} -> GENUINE  (via {%s})%n",
+                            node.stream().sorted().collect(Collectors.joining(",")),
+                            trigger != null ? trigger.stream().sorted().collect(Collectors.joining(",")) : "?");
                 } else if (reachable) {
-                    status.put(new HashSet<>(node), evaluateFn.apply(node));
+                    NodeStatus ns = evaluateFn.apply(node);
+                    status.put(new HashSet<>(node), ns);
+                    System.out.printf("[LATTICE] Eval    {%s} -> %s%n",
+                            node.stream().sorted().collect(Collectors.joining(",")), ns);
                 }
                 // else: unreachable — skip
             }
@@ -154,12 +153,13 @@ public final class LatticePruner {
             }
         }
 
+        System.out.println("[LATTICE] Step 3 – Antichain (maximal fake LHSs, no fake superset):");
+        collected.forEach(s -> System.out.println("  {" + s.stream().sorted().collect(Collectors.joining(",")) + "}"));
         return collected;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    /** Add all proper non-empty subsets of lhs that are not in extracted to grey. */
     private static void buildProperSubsets(Set<String> lhs, Set<Set<String>> grey,
                                             Set<Set<String>> extracted) {
         List<String> items = new ArrayList<>(lhs);
@@ -172,7 +172,6 @@ public final class LatticePruner {
         }
     }
 
-    /** Returns all direct parents (one element removed) of a lattice node. */
     private static List<Set<String>> directParents(Set<String> node) {
         List<Set<String>> parents = new ArrayList<>(node.size());
         for (String attr : node) {
@@ -183,7 +182,6 @@ public final class LatticePruner {
         return parents;
     }
 
-    /** Generate all size-k subsets of items as HashSet instances. */
     static List<Set<String>> combinations(List<String> items, int size) {
         List<Set<String>> result = new ArrayList<>();
         combineHelper(items, size, 0, new ArrayList<>(), result);

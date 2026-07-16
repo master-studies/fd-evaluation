@@ -62,6 +62,7 @@ public class _CoverageCalculator {
     }
 
     public List<Double> computeMetrics(List<_FunctionalDependencyGroup> fds, String fileName) throws IOException {
+        long start = System.currentTimeMillis();
         LinkedList<Double> coverageScores = new LinkedList<>();
 
         // Calculate coverage for each FD
@@ -70,6 +71,7 @@ public class _CoverageCalculator {
             coverageScores.add(coverage);
         }
 
+        System.out.println("[COVERAGE] computeMetrics took " + (System.currentTimeMillis() - start) + " ms");
         return coverageScores;
     }
 }

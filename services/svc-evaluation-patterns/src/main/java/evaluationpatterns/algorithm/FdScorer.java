@@ -4,14 +4,6 @@ import java.util.List;
 
 /**
  * FakeRiskScore computation and FD classification (patterns.md sections 8–9).
- *
- * Port of fd_scorer.py.
- *
- * Pipeline per FD:
- *   1. computeRiskLevel()   — summarise LHS risk factors into LOW/MEDIUM/HIGH/CRITICAL
- *   2. computeFakeRiskScore() — sum all F-rule penalties + G-rule bonuses
- *   3. isHardAccept() / isHardReject() — override if strong evidence exists
- *   4. classifyScore()      — map score to decision label
  */
 public final class FdScorer {
 

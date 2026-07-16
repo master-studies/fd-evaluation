@@ -81,9 +81,10 @@ public class EntropyService {
         logger.info("Starting entropy computation...");
         long start = System.currentTimeMillis();
         double[][] infContMat = computation.getInformationContentMatrix();
-        long end = System.currentTimeMillis();
-        double runtime = (end - start) / 1000.0;
+        long elapsed = System.currentTimeMillis() - start;
+        double runtime = elapsed / 1000.0;
         logger.info("Entropy computation completed in {} seconds", runtime);
+        System.out.println("[ENTROPY] getInformationContentMatrix took " + elapsed + " ms");
 
         if (opts.outputName != null) {
             try {

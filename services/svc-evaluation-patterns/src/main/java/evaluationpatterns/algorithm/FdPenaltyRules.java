@@ -6,24 +6,9 @@ import java.util.Set;
 /**
  * Penalty and bonus rules for fake/coincidental FD detection (patterns.md sections 6–7).
  *
- * Each method takes raw metric values and returns integer fake-risk points.
+ * Each method takes raw metric values and returns integer fake-risk points (all based on intuition).
  * Positive values increase FakeRiskScore (more suspicious); negative values reduce it.
  * The caller sums all results into a final FakeRiskScore.
- *
- * Penalty rules (section 6):
- *   F1 penalizeKeyLikeLhs          →  0 or +40
- *   F2 penalizeContinuousLhs       →  0, +10, or +35
- *   F3 penalizeLhsSize             →  0, +10, or +30
- *   F4 penalizeLowRepeatedEvidence →  0, +10, +20, or +35
- *   F5 penalizeWeakCoverage        →  0, +10, or +20
- *   F6 penalizeIdentifierLikeRhs   →  0 or +10
- *
- * Bonus rules (section 7):
- *   G1 bonusRepeatedEvidence       →  0, -20, or -35
- *   G2 bonusLowDistinctness        →  0, -5, -15, or -25
- *   G3 bonusTransformationEvidence →  0, -25, or -40
- *   G4 bonusReferenceEvidence      →  0, -20, or -35
- *   G5 adjustSpuriousnessRisk      →  -10, 0, +20, or +35
  */
 public final class FdPenaltyRules {
 

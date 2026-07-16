@@ -16,7 +16,7 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 
 /**
- * Unit tests for _GenuinenessCalculator focused on per-value mode fractions.
+ * Unit tests for _GenuinenessCalculator focused on per-tuple mode fractions.
  */
 class _GenuinenessCalculatorTest {
 
@@ -81,5 +81,37 @@ class _GenuinenessCalculatorTest {
         assertEquals(1, scores.size());
         assertEquals(2.0 / 3.0, scores.get(0), 1e-9,
                 "Genuineness should equal the statistical mode fraction for mixed distributions");
+    }
+
+    @Test
+    void weightsGroupsByTupleCountPerTuple() throws IOException {
+        /*
+         * FD: column 0 -> column 1
+         * Groups: X='v1' -> [a1,a1,a1,a2,a3] (mode count 3 of 5)
+         *         X='v2' -> [a3,a3,a1]       (mode count 2 of 3)
+         *         X='v3' -> [a2]             (mode count 1 of 1)
+         *         X='v4' -> [a4]             (mode count 1 of 1)
+         * PerTuple: (3+2+1+1) / (5+3+1+1) = 0.7
+         * (PerValue would give (0.6+0.667+1+1)/4 = 0.8 instead.)
+         */
+        String testFile = writeDataset(
+                "v1,a1",
+                "v1,a1",
+                "v1,a1",
+                "v1,a2",
+                "v1,a3",
+                "v2,a3",
+                "v2,a3",
+                "v2,a1",
+                "v3,a2",
+                "v4,a4"
+        );
+
+        List<Double> scores = calculator.computeMetrics(List.of(fd(1, 0)), testFile);
+
+        assertNotNull(scores);
+        assertEquals(1, scores.size());
+        assertEquals(0.7, scores.get(0), 1e-9,
+                "Genuineness should weight each group by its tuple count (PerTuple)");
     }
 }

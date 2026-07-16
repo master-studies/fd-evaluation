@@ -9,10 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Loads a CSV file with a header row and provides column-name-based access.
- * Used by evaluation-patterns metrics which operate on column names rather than indices.
- */
+
 public class CsvDataset {
 
     private static final String DATASETS_PATH = "datasets/";

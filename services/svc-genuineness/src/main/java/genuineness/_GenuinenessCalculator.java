@@ -14,7 +14,7 @@ public class _GenuinenessCalculator {
     public _GenuinenessCalculator() {
     }
 
-    // Compute genuineness per-value for a single FD 
+    // Compute genuineness per-tuple for a single FD
     private double computeGenuineness(IntList determinant, Integer dependent, String fileName) throws IOException {
         _CSVDataset input = new _CSVDataset(fileName, false);
         List<String[]> data = input.readData();
@@ -33,37 +33,37 @@ public class _GenuinenessCalculator {
             countXA.merge(keyXA, 1, Integer::sum);
         }
 
-        Map<String, Double> likelihoods = new HashMap<>();
+        // For each distinct X value, keep the count of its dominant A value
+        Map<String, Integer> maxAgreements = new HashMap<>();
 
         for (Map.Entry<String, Integer> entry : countXA.entrySet()) {
             String keyXA = entry.getKey();
             String keyX = keyXA.substring(0, keyXA.lastIndexOf('|'));
 
-            int countForXA = entry.getValue();
-            int countForX = countX.getOrDefault(keyX, 1);
-
-            double likCandidate = (double) countForXA / countForX;
-
-            likelihoods.merge(keyX, likCandidate, Math::max);
+            maxAgreements.merge(keyX, entry.getValue(), Math::max);
         }
 
-        double genuineness = likelihoods.values().stream()
-                .mapToDouble(Double::doubleValue)
-                .average()
-                .orElse(0.0);
+        long agree = maxAgreements.values().stream()
+                .mapToLong(Integer::longValue)
+                .sum();
+        long total = countX.values().stream()
+                .mapToLong(Integer::longValue)
+                .sum();
 
-        return genuineness;
+        return total == 0 ? 0.0 : (double) agree / total;
     }
 
     public List<Double> computeMetrics(List<_FunctionalDependencyGroup> fds, String fileName) throws IOException {
+        long start = System.currentTimeMillis();
         LinkedList<Double> genuinenessScores = new LinkedList<>();
 
-        // Calculate genuinenessPV for all FDs
+        // Calculate genuinenessPT for all FDs
         for (_FunctionalDependencyGroup fd : fds) {
-            double genuinenessPV = computeGenuineness(fd.getValues(), fd.getAttributeID(), fileName);
-            genuinenessScores.add(genuinenessPV);
+            double genuinenessPT = computeGenuineness(fd.getValues(), fd.getAttributeID(), fileName);
+            genuinenessScores.add(genuinenessPT);
         }
 
+        System.out.println("[GENUINENESS] computeMetrics took " + (System.currentTimeMillis() - start) + " ms");
         return genuinenessScores;
     }
 

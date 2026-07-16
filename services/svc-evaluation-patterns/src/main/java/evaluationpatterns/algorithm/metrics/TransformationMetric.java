@@ -4,17 +4,16 @@ import evaluationpatterns.algorithm.CsvDataset;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Transformation Confidence metric (patterns.md section 7 / G3).
  *
  * Detects string/format transformations between LHS and RHS:
  *   abbreviation, case conversion, initials, character replacement, concatenation.
- * Returns a confidence value in [0.0, 1.0] — the fraction of rows where the
- * transformation pattern holds.
- *
- * Port of evaluate_fd_transformations.py (compute_transformation_confidence).
  */
 public class TransformationMetric {
 
@@ -138,6 +137,23 @@ public class TransformationMetric {
             if (transformed.equals(tgt.get(i))) replMatches++;
         }
         if (replMatches > n * MATCH_THRESHOLD) return (double) replMatches / n;
+
+        // 5. Word extraction: every token of tgt appears among the tokens of src
+        //    after normalisation (e.g. albert_park ⊆ "Albert Park Grand Prix
+        //    Circuit"). Token-level matching, not substring, so numeric fragments
+        //    and short tokens cannot match accidentally.
+        int extractMatches = 0;
+        for (int i = 0; i < n; i++) {
+            Set<String> srcTokens =
+                    new HashSet<>(Arrays.asList(normalizeForCase(src.get(i)).split("_")));
+            String[] tgtTokens = normalizeForCase(tgt.get(i)).split("_");
+            boolean contained = tgtTokens.length > 0 && !tgtTokens[0].isEmpty();
+            for (String t : tgtTokens) {
+                if (t.length() < 2 || !srcTokens.contains(t)) { contained = false; break; }
+            }
+            if (contained) extractMatches++;
+        }
+        if (extractMatches > n * MATCH_THRESHOLD) return (double) extractMatches / n;
 
         return 0.0;
     }

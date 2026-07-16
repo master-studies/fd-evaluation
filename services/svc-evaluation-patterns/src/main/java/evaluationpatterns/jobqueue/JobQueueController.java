@@ -61,7 +61,6 @@ public class JobQueueController {
 
     record SuspiciousQuestion(List<String> lhs, String rhs, String text) {}
 
-    /** One completed RHS with its fake-antichain LHS strings. */
     record CompletedRhs(String rhs, List<String> antichain) {}
 
     record ProcessingState(

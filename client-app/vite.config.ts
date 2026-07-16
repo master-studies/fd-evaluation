@@ -53,7 +53,7 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/succinctness/, ''),
       },
       '/evaluation-patterns': {
-        target: process.env.VITE_EVALUATION_PATTERNS_PROXY_TARGET || 'http://svc-evaluation-patterns:4699',
+        target: process.env.VITE_EVALUATION_PATTERNS_PROXY_TARGET || 'http://svc-evaluation-patterns:4707',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/evaluation-patterns/, ''),

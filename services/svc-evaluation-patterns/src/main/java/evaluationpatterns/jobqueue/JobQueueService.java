@@ -71,7 +71,6 @@ public class JobQueueService {
         return repository.findLatestFinishedFDDiscovery(filename);
     }
 
-    /** Persist an intermediate state JSON to ResultData while the job is RUNNING. */
     @Transactional
     public void updateResultData(UUID jobId, String resultData) {
         repository.findById(jobId).ifPresent(job -> {

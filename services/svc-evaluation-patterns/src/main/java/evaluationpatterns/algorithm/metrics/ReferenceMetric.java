@@ -15,9 +15,6 @@ import java.util.Set;
  * Measures what fraction of unique RHS values participate in a synonym group —
  * values that are near-duplicate forms of the same concept (e.g. "British" / "british").
  * A high value is evidence of a reference/lookup-table relationship.
- *
- * Port of evaluate_fd_synonym_violations.py (compute_reference_confidence).
- * Uses LCS-based similarity ratio to approximate Python's SequenceMatcher.
  */
 public class ReferenceMetric {
 

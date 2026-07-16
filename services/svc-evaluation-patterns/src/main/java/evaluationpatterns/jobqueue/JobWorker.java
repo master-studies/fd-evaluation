@@ -112,16 +112,6 @@ public class JobWorker {
         return csv;
     }
 
-    /**
-     * Write a processing-state JSON blob to ResultData so the frontend can
-     * show progress and surface questions without a separate column.
-     *
-     * Schema:
-     *   { "phase": "processing"|"awaiting_input",
-     *     "completedRhs": [{ "rhs": "col", "antichain": ["{a,b}", ...] }, ...],
-     *     "currentRhs": "col2" | null,
-     *     "question": { "lhs": [...], "rhs": "...", "text": "..." } | null }
-     */
     private void persistState(UUID jobId, String phase, Map<String, List<String>> rhsResults,
             String currentRhs, List<String> questionLhs, String questionRhs, String questionText) {
         try {

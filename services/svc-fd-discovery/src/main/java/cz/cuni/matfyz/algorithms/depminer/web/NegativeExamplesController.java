@@ -10,7 +10,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -82,21 +84,46 @@ public class NegativeExamplesController {
                     continue;
                 }
 
-                // Per FD_NEG_EX.pdf Algorithm 3:
-                // 1. Shift all existing non-zero RHS abstract values up by 1.
-                //    This makes room so that the new row's RHS=1 is unambiguously the first
-                //    distinct non-base value when mapIndicesToValues scans top-to-bottom.
-                // 2. Insert the negative example row: 0 on every LHS column (same base values),
-                //    1 on the RHS column (maps to the first distinct real-world value ≠ base).
-                // 3. Map the complete extended abstract AR to real-world values in one pass.
+                Set<Integer> lhsIdx = new HashSet<>();
+                boolean lhsOk = true;
+                for (String col : target.lhs()) {
+                    int idx = columnNames.indexOf(col);
+                    if (idx < 0) {
+                        LOGGER.log(Level.WARNING, "[NegEx] LHS column not found: " + col
+                                + " available=" + columnNames);
+                        lhsOk = false;
+                        break;
+                    }
+                    lhsIdx.add(idx);
+                }
+                if (!lhsOk) continue;
+
+                // Negative-example construction:
+                // The new row copies the LHS values of the base (first) row of the
+                // Armstrong relation and takes a fresh, previously unseen value in
+                // every other column. The pair (base row, negative row) then agrees
+                // on exactly the LHS, so one example challenges LHS -> Y for every
+                // column Y outside the LHS and, by downward closure, all subsets
+                // of the LHS as well.
+                //
+                // Abstractly: shift all non-zero values of every non-LHS column up
+                // by 1, then insert the new row (0 on LHS columns, 1 elsewhere)
+                // directly after the base row. This keeps first occurrences
+                // increasing down each column, which the real-world mapping
+                // (mapIndicesToValues) relies on.
                 List<int[]> extendedAR = new ArrayList<>();
                 for (int[] row : abstractAR) {
                     int[] copy = row.clone();
-                    if (copy[rhsIdx] != 0) copy[rhsIdx]++;
+                    for (int c = 0; c < copy.length; c++) {
+                        if (!lhsIdx.contains(c) && copy[c] != 0) copy[c]++;
+                    }
                     extendedAR.add(copy);
                 }
+                int[] baseRow = abstractAR.get(0);
                 int[] negAbstractRow = new int[columnNames.size()];
-                negAbstractRow[rhsIdx] = 1;
+                for (int c = 0; c < negAbstractRow.length; c++) {
+                    negAbstractRow[c] = lhsIdx.contains(c) ? baseRow[c] : 1;
+                }
                 extendedAR.add(1, negAbstractRow);
 
                 List<List<String>> realWorldRows = new ArrayList<>(

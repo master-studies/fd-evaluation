@@ -22,21 +22,6 @@ import java.util.stream.Collectors;
 
 /**
  * Main orchestrator for the evaluation-patterns pipeline.
- *
- * Port of run_lattice.py + make_data_eval_fn from lattice_pruner.py.
- *
- * For each unique RHS found in the provided FDs:
- *   1. Compute reference confidence (RHS-only metric, computed once per RHS).
- *   2. Run the lattice pruner using data-driven evaluation.
- *   3. Collect the maximal antichain of fake LHS sets.
- *
- * Evaluation pipeline per node (from make_data_eval_fn):
- *   1. Genuineness gate  — non-exact FDs (< 1.0) are treated as FAKE.
- *   2. Compute DR, AvgECS, Coverage, HasContinuous, TransformationConfidence.
- *   3. classify_fd() → decision.
- *   4. GENUINE / LIKELY_GENUINE / PROBABLY_GENUINE → genuine.
- *   5. SUSPICIOUS → invoke QuestionCallback if provided; else treat as FAKE.
- *   6. Everything else → FAKE.
  */
 public class EvaluationPatternsProcessor {
 
@@ -54,10 +39,7 @@ public class EvaluationPatternsProcessor {
 
     // ── Public API ────────────────────────────────────────────────────────────
 
-    /**
-     * A functional dependency entry with column-name LHS and RHS.
-     * LHS is stored as a Set for lattice operations; convert to sorted List for metrics.
-     */
+
     public record FdEntry(Set<String> lhs, String rhs) {}
 
     /**
@@ -86,21 +68,11 @@ public class EvaluationPatternsProcessor {
 
     /**
      * Run the full evaluation pipeline for all RHS columns in the provided FDs.
-     * Convenience overload with no callbacks (automated mode: SUSPICIOUS → FAKE).
      */
     public List<RhsAntichain> process(CsvDataset dataset, List<FdEntry> fds) {
         return process(dataset, fds, null, null);
     }
 
-    /**
-     * Run the full evaluation pipeline for all RHS columns in the provided FDs.
-     *
-     * @param dataset          The loaded CSV dataset.
-     * @param fds              FD entries parsed from the FD-Discovery result.
-     * @param progressCallback Called when each RHS starts and finishes (may be null).
-     * @param questionCallback Called when a SUSPICIOUS FD needs user input (may be null → FAKE).
-     * @return One RhsAntichain per RHS that has FDs.
-     */
     public List<RhsAntichain> process(CsvDataset dataset, List<FdEntry> fds,
             ProgressCallback progressCallback, QuestionCallback questionCallback) {
 
@@ -124,9 +96,13 @@ public class EvaluationPatternsProcessor {
             if (progressCallback != null) progressCallback.onRhsStarted(rhs);
 
             try {
-                // All attributes except the current RHS form the attribute universe
-                List<String> attributes = dataset.getColumns().stream()
-                        .filter(col -> !col.equals(rhs))
+                // Attribute universe: union of LHS attributes from seed FDs only.
+                // The lattice is built over columns that appear in the extracted FDs,
+                // not over every column in the dataset.
+                List<String> attributes = seedFds.stream()
+                        .flatMap(Set::stream)
+                        .distinct()
+                        .sorted()
                         .collect(Collectors.toList());
 
                 if (attributes.isEmpty()) {
@@ -169,12 +145,7 @@ public class EvaluationPatternsProcessor {
         return results;
     }
 
-    /**
-     * Parse FD entries from the JSON result stored by the FD-Discovery service.
-     *
-     * Expected format: JSON array of {"names": "[col1, col2] -> col3", "indices": "..."} objects.
-     * The names field is parsed; indices are ignored (evaluation works on column names).
-     */
+
     public List<FdEntry> parseFds(String fdDiscoveryResultJson) throws Exception {
         ObjectMapper mapper = new ObjectMapper();
         JsonNode jsonArray = mapper.readTree(fdDiscoveryResultJson);
@@ -191,14 +162,7 @@ public class EvaluationPatternsProcessor {
         return fds;
     }
 
-    /**
-     * Format the per-RHS antichain results as a CSV string.
-     *
-     * Output format (one row per fake LHS):
-     *   RHS,FakeLhs
-     *   driverRef,"{surname}"
-     *   name,"{lat,lng}"
-     */
+
     public String buildOutputCsv(List<RhsAntichain> results) {
         StringBuilder sb = new StringBuilder();
         sb.append("RHS,FakeLhs\n");
@@ -226,7 +190,6 @@ public class EvaluationPatternsProcessor {
             CsvDataset data, Set<String> lhsSet, String rhs, double rConf,
             QuestionCallback questionCallback) {
 
-        // Use a sorted list for consistent key ordering in metric computations
         List<String> lhs = lhsSet.stream().sorted().collect(Collectors.toList());
 
         try {
@@ -244,6 +207,12 @@ public class EvaluationPatternsProcessor {
 
             FdScorer.ClassificationResult result = FdScorer.classifyFd(
                     dr, avgEcs, hasCont, lhs.size(), coverage, rhs, lhs, tConf, rConf);
+
+            String riskLevel = FdScorer.computeRiskLevel(dr, hasCont, lhs.size(), coverage);
+            System.out.printf("  %-35s -> %-20s g=1.00 DR=%.2f ECS=%.2f cov=%.2f cont=%d t=%.2f r=%.2f risk=%-8s score=%+d [%s]%n",
+                    "{" + String.join(",", lhs) + "}", rhs,
+                    dr, avgEcs, coverage, hasCont ? 1 : 0, tConf, rConf,
+                    riskLevel, result.score(), result.decision());
 
             return switch (result.decision()) {
                 case GENUINE, LIKELY_GENUINE, PROBABLY_GENUINE ->
@@ -269,13 +238,8 @@ public class EvaluationPatternsProcessor {
 
     // ── Parsing helpers ───────────────────────────────────────────────────────
 
-    /**
-     * Parse a names string like "[col1, col2] -> col3" into an FdEntry.
-     * Also handles "{col1} -> col3", "-->" and no-space variants like "[col]->col3".
-     */
     private FdEntry parseNamesString(String names) {
-        // Normalise: collapse any whitespace around -> / --> to a single " -> "
-        // so "[dob]->driverId" and "[col] --> rhs" both become "[dob] -> driverId"
+
         String normalised = names.replaceAll("\\s*-->\\s*", " -> ")
                                  .replaceAll("\\s*->\\s*", " -> ");
 

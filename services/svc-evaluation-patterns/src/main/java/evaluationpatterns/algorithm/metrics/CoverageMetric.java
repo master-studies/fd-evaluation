@@ -6,13 +6,6 @@ import java.util.List;
 
 /**
  * Coverage metric (patterns.md section 5.4).
- *
- * Pairwise metric over all row pairs (i, j). For each pair:
- *   k = (# LHS cols where ti == tj) + (1 if RHS ti != tj)
- * Pairs where k == pSize (LHS all equal AND RHS differs — an FD violation) are skipped.
- * All other pairs contribute (k+1)/pSize. Coverage = avg weight over evidence pairs.
- *
- * O(n²) — capped at MAX_ROWS to stay responsive.
  */
 public class CoverageMetric {
 
